@@ -32,6 +32,11 @@ from lore.scanner.project_walker import ProjectWalker
 console = Console()
 
 
+def _is_sensitive_config_key(key: str) -> bool:
+    lowered = key.lower()
+    return any(part in lowered for part in ("key", "token", "secret", "password"))
+
+
 @click.group()
 @click.version_option(version=__version__, prog_name="lore")
 def main():
@@ -58,9 +63,22 @@ def cmd_init():
         default=cfg.llm_provider,
     )
 
-    default_model = cfg.llm_model
     if provider == "ollama":
-        default_model = click.prompt("Ollama Model (e.g. gemma4:e2b, qwen3:4b, llama3.2:3b)", default="gemma4:e2b")
+        default_model = click.prompt(
+            "Ollama Model (e.g. gemma4:e2b, qwen3:4b, llama3.2:3b)",
+            default=cfg.llm_model if cfg.llm_provider == "ollama" else "gemma4:e2b",
+        )
+    else:
+        provider_name = {
+            "openai": "OpenAI",
+            "anthropic": "Anthropic",
+            "openrouter": "OpenRouter",
+            "gemini": "Gemini",
+        }[provider]
+        if cfg.llm_provider == provider:
+            default_model = click.prompt(f"{provider_name} Model", default=cfg.llm_model)
+        else:
+            default_model = click.prompt(f"{provider_name} Model")
 
     update_config({
         "author_name": author_name,
@@ -87,7 +105,8 @@ def cmd_config_list():
     table.add_column("Value")
 
     for k, v in cfg.model_dump(mode="json").items():
-        table.add_row(k, str(v))
+        display_value = "REDACTED" if _is_sensitive_config_key(k) and v else str(v)
+        table.add_row(k, display_value)
     console.print(table)
 
 
@@ -98,7 +117,10 @@ def cmd_config_set(key: str, value: str):
     """Update a specific configuration setting."""
     try:
         update_config({key: value})
-        console.print(f"[bold green]✓ Updated {key} = {value}[/bold green]")
+        if _is_sensitive_config_key(key):
+            console.print(f"[bold green]✓ Updated {key} (value hidden)[/bold green]")
+        else:
+            console.print(f"[bold green]✓ Updated {key} = {value}[/bold green]")
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {e}")
 
@@ -370,9 +392,7 @@ def cmd_generate(
             model=m_name,
         )
     except Exception as e:
-        console.print(f"[bold red]LLM Generation failed:[/bold red] {e}")
-        console.print("[dim]Falling back to mock offline preview mode...[/dim]")
-        raw_output = router.generate(prompt=prompt, force_mock=True)
+        raise click.ClickException(f"LLM generation failed: {e}") from e
 
     # 3-Pass Anti-Slop Humanization
     humanized_output, audit = Humanizer.humanize(raw_output, voice_context=voice_context)

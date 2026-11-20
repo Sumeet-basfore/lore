@@ -4,24 +4,26 @@
 
 ## Goal
 
-Prepare Lore for a small, invitation-based beta with developers who can report problems. The beta should let a developer install Lore, scan a local repository, make an evidence-linked draft, review it, and export it without being misled about whether anything was published or how repository data is handled.
+Prepare Lore for a small, invitation-based beta with developers who can report problems. The beta should let a developer install Lore, scan a local repository, make an evidence-linked draft, review it, and export it with a clear account of repository data handling.
 
 This plan does not include a hosted service, billing, enterprise sales, or a public launch. The owner has approved pushing the feature branch, opening a pull request, obtaining a sub-agent review, merging, and pushing the merged code. It does not include publishing a package, creating a GitHub release or tag, or posting a beta announcement; those still require separate approval.
 
 ## Current findings
 
-1. `LinkedInPublisher`, `BlueskyPublisher`, and `GitHubReleasePublisher` can return successful mock URLs when credentials are missing or `LORE_MOCK_LLM=1`. `SocialRouter` treats every successful result as a completed publication. `TwitterBridgePublisher` returns a web-intent URL, which opens a compose flow rather than confirming a published post. The existing publisher test currently expects mock success to change a draft to `PUBLISHED`.
+1. `LinkedInPublisher`, `BlueskyPublisher`, and `GitHubReleasePublisher` can return successful mock URLs when credentials are missing or `LORE_MOCK_LLM=1`. `SocialRouter` treats every successful result as a completed publication. `TwitterBridgePublisher` returns a web-intent URL, which opens a compose flow rather than confirming a published post. The existing publisher test currently expects mock success to change a draft to `PUBLISHED`. These publishing modules are not exposed as a `lore` CLI command, so publishing is not part of the beta user workflow.
 2. The former distribution name `lore-cli` is already used on PyPI by an unrelated codebase tool. The README links to an MIT license, but no `LICENSE` file is tracked. The declared Python minimum is 3.10, while `AGENTS.md` requires Python 3.12 or newer.
 3. The README promises zero hallucinations and zero leaks, calls the DLP engine enterprise-grade, and claims LinkedIn token refresh. These claims need to match code and tested behavior. The repository has no release artifacts or public install path through the intended package name.
 4. The research folder contains market estimates and persona quotations without source references or a described interview method. Treat those as hypotheses, not beta validation.
+5. The normal scan-to-draft path reads git commit metadata and builds atoms from commit subjects, changed paths, and diff counts; it does not read source diff contents. The separate DLP scanner is not connected to this path. `lore config list` and `lore config set api_key ...` currently print the configured API key, and generation silently falls back to canned mock text when the selected model fails.
+6. `lore init` asks for a remote provider but reuses the prior model name, which defaults to an Ollama model and is usually invalid for a remote provider.
 
 ## Recommended beta scope
 
 Keep the beta focused on the local workflow already present:
 
-`scan local Git history → extract evidence-backed atoms → generate a draft → human review → export or deliberately hand off to a platform`
+`scan local Git history → extract evidence-backed atoms → generate a draft → human review → export`
 
-Direct publishing remains supported only where Lore receives a confirmed platform response. Missing credentials, mock execution, and compose hand-offs must never be shown as published. The beta does not claim that DLP catches every secret or that generated text cannot contain unsupported statements.
+Publishing modules are not exposed by the beta CLI, so the user workflow ends at local export. In the internal publisher layer, missing credentials, simulations, and compose hand-offs must not be shown as published. The beta does not claim that DLP catches every secret or that generated text cannot contain unsupported statements.
 
 ## Work plan
 
@@ -54,15 +56,20 @@ Direct publishing remains supported only where Lore receives a confirmed platfor
 
 ### Slice 3: Align product claims and privacy details
 
-**Likely files:** `README.md`, `CONTEXT.md`, and launch copy under `content/` if it will be used for the beta.
+**Likely files:** `README.md`, `CONTEXT.md`, `BETA.md`, `src/lore/cli.py`, `tests/test_cli.py`, and launch copy under `content/` if it will be used for the beta.
 
 - Replace absolute guarantees such as “zero hallucinations” and “zero leaks” with precise descriptions of evidence linking, redaction checks, and their limits.
 - Correct publisher descriptions: distinguish direct publishing from opening a web compose flow, and remove the token-refresh claim unless the implementation actually refreshes tokens.
 - State when local Ollama is used, when configured remote providers receive prompt data, what is stored locally, and what beta features contact a remote service.
 - Replace unverified market statistics and invented-looking interview quotes in beta-facing copy with sourced facts or clearly labeled hypotheses. Keep internal research claims separate from product guarantees.
+- Explain that scan and generation use commit metadata and evidence summaries rather than source diffs; the standalone DLP scanner is not active in this workflow. Describe local persistence, provider prompt contents, and optional remote model traffic.
+- Ensure configuration commands never print API keys, and stop generation with an error instead of saving canned mock output when a configured model fails.
+- Ask for a model name when onboarding a remote provider rather than reusing the Ollama default.
 - Add a short beta guide with setup, supported workflow, known limitations, privacy boundaries, and a feedback route.
 
-**Acceptance:** Every beta-facing capability and security statement maps to code or an identified source; the guide tells testers what data remains local and what may be sent to a selected provider.
+**Acceptance:** Every beta-facing capability and security statement maps to code or an identified source; the guide tells testers what data remains local and what may be sent to a selected provider; CLI output does not reveal configured keys; provider failures do not create mock drafts.
+
+**Status:** Complete. The README, beta guide, context, and four launch/release drafts now match the current CLI workflow and label privacy limits. Config output redacts sensitive values, remote-provider onboarding asks for a provider-specific model, and generation stops on provider errors. Focused publisher, CLI, and MCP checks pass (30 tests).
 
 ### Slice 4: Beta verification and hand-off
 
@@ -85,4 +92,4 @@ Direct publishing remains supported only where Lore receives a confirmed platfor
 
 ## Review decisions
 
-Please review the beta scope, especially the treatment of social publishing. The recommendation is to preserve direct publishing only when provider confirmation is available and treat the Twitter web intent as a hand-off. If this scope is approved, implementation will begin with Slice 1 and `CONTEXT.md` will be updated after every slice.
+The owner approved this scope on 2026-11-21. Publishing is excluded from the beta CLI workflow because no publish command is exposed. The owner authorized pushing the feature branch, opening a pull request, obtaining a sub-agent review, fixing findings, merging, and pushing the merged code. Package publication, GitHub releases/tags, and public beta announcements remain out of scope without separate approval.

@@ -1,19 +1,16 @@
-# Lore v2.0 Launch Thread
+# Lore beta invitation draft (not posted)
 
-### Tweet 1 (1/5)
-Most developer content written with AI sounds like corporate brochure copy. It overuses buzzwords, spams em-dashes, and invents numbers because the model never inspected your repo. We built Lore to fix this. Lore is a local-first CLI that turns raw git commits into verified, high-signal engineering writing.
+### Post 1
+Lore is a CLI for turning recent Git history into engineering content drafts. It starts from commit metadata so you can spend less time assembling a first draft.
 
-### Tweet 2 (2/5)
-Lore works directly with your local git history. It clusters commits in 4-hour windows, calculates AST diffs across function boundaries, and records an evidence ledger. If your post mentions a 40ms latency reduction or 12 files touched, that claim links directly to commit SHAs. No fabricated metrics.
+### Post 2
+The current workflow reads commit subjects, dates, changed paths, and line counts. It does not pass source diffs to the model. The draft links back to Git evidence, but that evidence does not prove every sentence.
 
-### Tweet 3 (3/5)
-Before anything touches a model, Lore runs an enterprise DLP scanner. It checks 42 regex patterns and evaluates Shannon entropy to strip AWS keys, private tokens, and connection strings. If you use Ollama, zero bytes leave your machine. Your proprietary code stays on loopback.
+### Post 3
+Ollama at localhost is the default model endpoint. Remote providers are optional; when selected, Lore sends them the prompt built from project and commit metadata.
 
-### Tweet 4 (4/5)
-The output runs through a 3-pass anti-slop engine. It strips 29 known AI markers, purges copula crutches like "serves as", removes negative parallelism, and drops decorative emojis. The result reads like an engineer talking to another engineer, not an AI marketing department.
+### Post 4
+You can inspect, edit, approve, and export a draft. Review every claim before sharing it. Lore can still produce text that is inaccurate or unsupported.
 
-### Tweet 5 (5/5)
-Lore v2.0 includes a headless visual diff card generator (SVG and PNG at 1200x675), a local review dashboard on port 4748, and a stdio MCP server for Claude and Cursor.
-Install via pip: `pip install -e .`
-Scan your repository: `lore scan`
-Code and docs: github.com/personal-repo/lore
+### Post 5
+Lore is in beta and installs from source. If you try it, send feedback through a GitHub issue. This draft has not been posted.
