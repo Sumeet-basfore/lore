@@ -6,7 +6,7 @@ import urllib.parse
 from pathlib import Path
 from typing import Optional
 
-from lore.publishing.base import PublishResult
+from lore.publishing.base import PublishOutcome, PublishResult
 
 
 def copy_image_to_clipboard(image_path: Path) -> bool:
@@ -67,7 +67,12 @@ class TwitterBridgePublisher:
 
         return PublishResult(
             success=True,
+            outcome=PublishOutcome.HANDOFF,
             platform="twitter",
-            published_url=intent_url,
-            error=None if clipboard_copied else "Image could not be auto-copied to clipboard",
+            action_url=intent_url,
+            message=(
+                "Compose page opened; finish and submit the post there."
+                if not image_path or clipboard_copied
+                else "Compose page opened; finish and submit the post there. The image could not be copied automatically."
+            ),
         )

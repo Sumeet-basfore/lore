@@ -5,7 +5,7 @@ from typing import Optional
 import httpx
 
 from lore.core.models import Draft
-from lore.publishing.base import PublishResult
+from lore.publishing.base import PublishOutcome, PublishResult
 
 
 class GitHubReleasePublisher:
@@ -25,11 +25,25 @@ class GitHubReleasePublisher:
         body = draft.humanized_content
         tag_name = f"v{draft.id[:6]}"
 
-        if not token or not repo or os.getenv("LORE_MOCK_LLM", "0") == "1":
+        if os.getenv("LORE_MOCK_PUBLISHING", "0") == "1":
             return PublishResult(
                 success=True,
+                outcome=PublishOutcome.SIMULATED,
                 platform="github",
-                published_url=f"https://github.com/example/repo/releases/tag/{tag_name}",
+                message="Simulated GitHub release; no release was created.",
+            )
+
+        missing = []
+        if not token:
+            missing.append("GITHUB_TOKEN")
+        if not repo:
+            missing.append("GITHUB_REPOSITORY")
+        if missing:
+            return PublishResult(
+                success=False,
+                outcome=PublishOutcome.FAILED,
+                platform="github",
+                error=f"GitHub release publishing requires {', '.join(missing)}.",
             )
 
         api_url = f"https://api.github.com/repos/{repo}/releases"
@@ -51,6 +65,12 @@ class GitHubReleasePublisher:
             release_data = resp.json()
             return PublishResult(
                 success=True,
+                outcome=PublishOutcome.PUBLISHED,
                 platform="github",
                 published_url=release_data.get("html_url"),
+                message=(
+                    None
+                    if release_data.get("html_url")
+                    else "GitHub accepted the release but did not return its URL."
+                ),
             )

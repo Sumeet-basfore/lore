@@ -2,58 +2,30 @@
 
 ---
 
-## 1. The Genesis: Why Lore Exists
+> **Accuracy note (2026-11-21):** The historical roadmap, research estimates, and earlier launch copy below include unverified hypotheses and planned capabilities. For current beta behavior and privacy boundaries, use [`README.md`](./README.md) and [`BETA.md`](./BETA.md). Do not use the older claims as public product guarantees.
 
-Developers are constantly shipping. Every week brings:
-* A complex database migration that halved query times.
-* A subtle race condition solved after three hours of debugging.
-* A clean architecture refactor switching from REST to WebSockets.
-* A new feature release that took days of concentrated engineering.
+## 1. The Product Hypothesis
 
-Yet, when you look at developer feeds on Twitter/X or LinkedIn, 99% of developers share almost nothing. Why?
-1. **The Translation Tax:** Turning raw technical code into engaging public writing takes mental bandwidth that developers would rather spend building.
-2. **The Slop Problem:** When developers try generic AI tools (like ChatGPT), the output is embarrassingly corporate, full of buzzwords (*"Excited to announce our groundbreaking feature that serves as a testament to our ongoing journey"*), and immediately rejected by technical peers.
-3. **The Lack of Context:** Generic tools don't know what actually changed in the repo. They require manual copying of diffs and explanations, destroying the convenience of automation.
+Lore explores whether developers who want to share engineering work can save time by starting from local Git history instead of manually assembling repository context. The beta is intended to test that workflow with developers who can report where the summaries, evidence, or review process fail.
 
-**Lore solves this by living where developers live: in the terminal and in the git repository.**
+This is a product hypothesis, not a measured market finding. The research notes do not document a completed interview study or representative survey.
 
----
+## 2. Current Beta Product Boundary
 
-## 2. What Makes Lore Unique (The Moat)
+| Area | Current behavior |
+|---|---|
+| Git input | The CLI reads commit subjects, timestamps, changed paths, and insertion/deletion counts. It does not include source diffs in the scan-to-draft prompt. |
+| Evidence | Drafts can be traced to commit SHAs and metadata. Evidence does not verify every generated sentence or prove impact. |
+| Models | Ollama at localhost is the default. OpenAI, Anthropic, OpenRouter, Gemini, and another Ollama URL can be configured; those endpoints receive prompt data. |
+| Secret checks | Some secret-like file names are skipped. The separate DLP scanner is not connected to scan-to-draft and is not a security boundary. |
+| Review | Drafts are stored locally and can be inspected, edited, approved, rejected, and exported. The CLI does not currently expose publishing. |
+| Voice | Writing samples are stored locally. Lore derives brief style guidance from sample analysis for prompts; it does not insert the full sample text into the generation prompt. |
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                           LORE MOAT                             │
-├───────────────────────────────┬─────────────────────────────────┤
-│ 1. Git Ground Truth           │ 2. 3-Pass Anti-Slop Humanizer   │
-│ Mines real commits, diffs,    │ Codified Wikipedia + Hermes     │
-│ files, and timestamps. Zero   │ cleanup rules. Zero corporate   │
-│ hallucinations.               │ fluff. Genuine dev voice.       │
-├───────────────────────────────┼─────────────────────────────────┤
-│ 3. Local-First & Offline      │ 4. Voice Calibration            │
-│ Powered by local Ollama by    │ Learns YOUR style from real     │
-│ default. Zero cloud leaks     │ writing samples. Gets better    │
-│ or API token costs.           │ the more you write.             │
-└───────────────────────────────┴─────────────────────────────────┘
-```
+Lore provides commit-linked context and deterministic text cleanup. It does not guarantee factual accuracy, complete secret detection, human-sounding prose, or privacy when a remote model endpoint is selected.
 
-### Competitor Comparison Matrix
+## 3. Draft Formats and Narrative Suggestions
 
-| Feature | ChatGPT / Claude Web | Generic AI Social Tools (Buffer AI, Taplio) | Specialized Tools (PushLog, GitEcho) | **Lore (`lore-cli`)** |
-|---|---|---|---|---|
-| **Understands Local Repos** | ❌ Manual paste | ❌ No code context | ⚠️ Limited to remote GitHub | ✅ **Direct local git & directory scan** |
-| **Evidence Ledger (Fact-Checked)** | ❌ None | ❌ None | ⚠️ Basic changelog diff | ✅ **Every claim tied to commit SHA** |
-| **Anti-Slop Engine** | ❌ Produces slop | ❌ Encourages slop | ❌ Basic prompting | ✅ **3-Pass Anti-Slop + Self-Audit** |
-| **Voice Calibration** | ⚠️ Complex prompts | ❌ Generic templates | ❌ Fixed tone | ✅ **Learns from your writing samples** |
-| **Local Model Support (Ollama)**| ❌ Cloud only | ❌ Cloud only | ❌ Cloud only | ✅ **Native Ollama local-first** |
-| **Works Offline** | ❌ No | ❌ No | ❌ No | ✅ **100% offline with local LLMs** |
-| **Privacy / No Code Leak** | ⚠️ Code sent to cloud | ⚠️ Code sent to cloud | ⚠️ Code sent to cloud | ✅ **Code never leaves machine** |
-
----
-
-## 3. High-Value Content Formulas Lore Automates
-
-Lore's prompt engine and atom extractors codify proven developer storytelling frameworks:
+The prompt templates suggest structures for several formats. These are starting points for review, not validated storytelling formulas:
 
 ### Formula A: The War Story (Bug Fix / Post-Mortem)
 1. **Hook:** The unexpected breakdown (e.g. *"Our Redis cache memory spiked to 98% at 3 AM."*)
@@ -65,7 +37,7 @@ Lore's prompt engine and atom extractors codify proven developer storytelling fr
 1. **Hook:** Contrarian technical stance (e.g. *"We replaced our microservice pipeline with a single SQLite file."*)
 2. **Context:** Why the conventional solution failed our specific scale.
 3. **Implementation:** What we built, how long it took, and what changed.
-4. **Result:** Benchmark metrics directly from diff stats and timing.
+4. **Result:** Include only a result the author can verify; diff counts are not performance metrics.
 
 ### Formula C: The Feature Ship (Launch / Build in Public)
 1. **Hook:** The concrete capability unlocked for users.
@@ -75,9 +47,9 @@ Lore's prompt engine and atom extractors codify proven developer storytelling fr
 
 ---
 
-## 4. Monetization Strategy & Business Potential
+## 4. Monetization Hypotheses
 
-Lore is architected from day one to evolve from a developer-loved open-source CLI into a high-margin software business:
+The following ideas are unvalidated planning hypotheses. There is no confirmed pricing, willingness-to-pay evidence, or validated return-on-investment estimate:
 
 ```
 ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐       ┌─────────────────┐
@@ -91,10 +63,10 @@ Lore is architected from day one to evolve from a developer-loved open-source CL
  • 3-Pass Humanizer       • Analytics & feedback    • Hosted fast LLMs        • Custom integrations
 ```
 
-### Why Developers Will Pay for Lore Pro
-* **Time ROI:** Spending 2 hours a week manually drafting posts costs an engineer ~$150+ in billable time. At $12/month, Lore Pro pays for itself in the first 20 minutes of usage.
-* **Career & Business Growth:** Builders who post consistent, high-signal technical updates attract consulting inbound, job offers, open-source sponsors, and paying customers for their software.
-* **Zero Friction:** Auto-publishing directly from the terminal or upon `git push` eliminates the need to even open social media platforms.
+### Questions to validate before pricing
+* Does the scan-to-draft workflow save enough time to be useful?
+* Which parts of the workflow do beta users trust, edit, or reject?
+* Would users pay for any capability beyond the local CLI, and what would they expect it to include?
 
 ---
 
@@ -102,15 +74,15 @@ Lore is architected from day one to evolve from a developer-loved open-source CL
 
 * **Python 3.12+ / 3.14:** Universal across developer environments, exceptional ecosystem for text parsing, git bindings, and local/remote LLM interactions.
 * **Click + Rich:** Provides a responsive, ergonomic, and aesthetic CLI experience that feels like modern tools (e.g. `uv`, `gh`, `docker`).
-* **SQLite:** Fast, zero-configuration local database that guarantees privacy, zero daemon management, and portable data files.
-* **Ollama First:** Seamless out-of-the-box integration with open weights models (`gemma4`, `qwen3`, `llama3.2`) running locally on user hardware.
-* **LiteLLM / Direct HTTP:** Universal compatibility with cloud models when users want higher parameter reasoning without locking into a single proprietary API.
+* **SQLite:** Local persistence with no separate database service. Lore does not encrypt its database or configuration files.
+* **Ollama default:** Lore defaults to an Ollama endpoint at `http://localhost:11434`; other endpoints and remote providers can be configured.
+* **Direct HTTP:** The router has direct HTTP adapters for the providers listed in the configuration and README. The project does not use LiteLLM.
 
 ---
 
-## 6. Architecture and Implementation Roadmap (Phases 0 through 7)
+## 6. Historical Architecture Roadmap (Phases 0 through 9)
 
-Lore v2.0.0 evolves the system from a prototype script into a production-grade, local-first developer content engine. Each phase represents a discrete architectural subsystem with strict verification gates.
+This older roadmap records proposed or previously reported architecture work. It is not a current status report, and the presence of a module or test does not mean the normal CLI workflow uses it. Current beta scope and data handling are defined in Section 2 and `BETA.md`.
 
 ### Phase 0: Database migration engine and schema evolution
 * **Component:** `lore.core.migrations`, `lore.core.database`
@@ -135,7 +107,7 @@ Lore v2.0.0 evolves the system from a prototype script into a production-grade, 
 * **Local-first priority:** Native Ollama client targeting local models (`gemma4:e2b`, `qwen3:4b`, `llama3.2:3b`).
 * **Cloud fallback:** Optional direct HTTP adapters for Anthropic Claude 3.5 Sonnet, OpenAI GPT-4o, Google Gemini 1.5 Pro, and OpenRouter with timeout budgets.
 * **Mock engine:** Deterministic offline mock mode (`LORE_MOCK_LLM=1`) for hermetic CI and test suites.
-* **Verification:** Automatic failover handling with graceful degradations when local daemons are offline.
+* **Current verification:** Provider errors stop generation. The test-only mock mode is explicit; there is no automatic fallback to canned text.
 
 ### Phase 4: Visual diff card engine
 * **Component:** `lore.visual.card_generator`, `lore.visual.layout_engine`, `lore.visual.themes`
@@ -160,11 +132,11 @@ Lore v2.0.0 evolves the system from a prototype script into a production-grade, 
 * **Component:** `lore.publishing.scheduler`, `lore.publishing.exporter`, `lore.publishing.social_router`
 * **Publishing calendar:** Queue management for queued, approved, and published drafts with optimal posting windows.
 * **Platform formatters:** Custom pure `httpx` adapters (zero vendor SDKs):
-  * LinkedIn Restli v2 (`/rest/posts`) with unicode monospace formatting and `offline_access` token handling.
+  * LinkedIn Restli v2 (`/rest/posts`) with unicode monospace formatting. Token refresh is not implemented.
   * Bluesky AT Protocol (`com.atproto.repo.createRecord`) with exact UTF-8 byte offset facets.
   * Twitter Bridge via Web Intent URL and automated PNG clipboard copying (`xclip`/`wl-copy`/`pbcopy`).
   * GitHub Releases generator with formatted features, bug fixes, and commit links.
-* **Safety mechanisms:** Dry-run preview mode enabled by default; zero automatic remote writes without explicit approval.
+* **Current limitation:** The publisher modules are not exposed as a `lore` CLI command. The CLI beta flow ends at review and export.
 
 ### Phase 7: Model Context Protocol (MCP) server
 * **Component:** `lore.mcp.server`
@@ -175,12 +147,8 @@ Lore v2.0.0 evolves the system from a prototype script into a production-grade, 
 
 ### Phase 8: Multi-platform launch collateral & dogfooding
 * **Component:** `projects/lore/content/`
-* **Deliverables:**
-  * `launch_twitter_thread.md`: 7-tweet zero-slop technical launch thread.
-  * `linkedin_architecture_breakdown.md`: Deep-dive engineering article on entropy math and AST parsing.
-  * `devto_technical_article.md`: 2,200-word engineering breakdown with dogfooding case studies.
-  * `github_release_v2.md`: Production v2.0.0 release notes with migration guides.
-* **Verification:** Verified in Commit `c76a946` and audited against `pstack-unslop` guidelines.
+* **Current content drafts:** `content/launch_twitter_thread.md`, `content/linkedin_architecture_breakdown.md`, `content/devto_technical_article.md`, and `content/github_release_v2.md` describe the current implementation and are not published or release-approved.
+* **Historical note:** Earlier versions of these drafts contained unsupported capabilities and metrics; they should not be reused from older Git revisions.
 
 ### Phase 9: Senior code quality & security hardening audit
 * **Auditors:** Senior Principal Software Engineer, Staff Security Engineer, Senior Release Lead.
@@ -198,107 +166,56 @@ Lore v2.0.0 evolves the system from a prototype script into a production-grade, 
 
 ---
 
-## 7. Component Map and Data Flow
+## 7. Current CLI Data Flow
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                             LORE ARCHITECTURE                               │
-└─────────────────────────────────────────────────────────────────────────────┘
-
- [Local Git Repositories]  ──►  (lore scan)
-            │
-            ▼
- ┌───────────────────────┐       ┌────────────────────────┐
- │ Git & Directory Walk  │ ────► │ Local DLP Scanner      │ ──► [Redacted Diffs]
- └───────────────────────┘       └────────────────────────┘
-            │
-            ▼
- ┌───────────────────────┐
- │ AST Diff Extractor    │ ──► [Semantic Change Signatures]
- └───────────────────────┘
-            │
-            ▼
- ┌───────────────────────┐
- │ Atom Extractor        │ ──► [Content Atoms + Evidence Ledger]
- └───────────────────────┘
-            │
-            ▼
- ┌───────────────────────┐
- │ Narrative Angle Finder│ ──► [Hook & Platform Strategy]
- └───────────────────────┘
-            │
-            ▼
- ┌───────────────────────┐
- │ Multi-Model Router    │ ──► [Raw LLM Drafts]
- │ (Ollama / Cloud)      │
- └───────────────────────┘
-            │
-            ▼
- ┌───────────────────────┐
- │ 3-Pass Anti-Slop      │ ──► [Humanized Posts & Threads]
- │ Humanizer Engine      │
- └───────────────────────┘
-            │
-            ├───────────────────────────────┬───────────────────────────────┐
-            ▼                               ▼                               ▼
- ┌───────────────────────┐       ┌───────────────────────┐       ┌───────────────────────┐
- │ Visual Diff Engine    │       │ Local Web Dashboard   │       │ Stdio MCP Server      │
- │ (1200x675 SVG / PNG)  │       │ (127.0.0.1:4748)      │       │ (Claude / Cursor)     │
- └───────────────────────┘       └───────────────────────┘       └───────────────────────┘
-            │                               │                               │
-            └───────────────────────────────┴───────────────────────────────┘
-                                            │
-                                            ▼
-                                [Export & Publication]
+```text
+Repository
+  ├─ project add: inspect README, package.json, pyproject.toml, and paths for local metadata
+  └─ scan: git log metadata + numstat
+       ↓
+Content atoms: commit subjects, dates, SHAs, changed paths, and line counts
+       ↓
+Prompt template: project name, atom/evidence fields, tech stack, angle, style guidance
+       ↓
+Configured Ollama endpoint (localhost by default) or selected remote model provider
+       ↓
+Deterministic humanizer → local draft database → human review → Markdown/JSON export
 ```
 
----
+The scan-to-draft path does not pass source diffs to the model. The standalone DLP scanner and AST inspection code are not wired into this normal CLI path. The CLI does not currently expose publishing, although publisher modules exist separately.
 
-## 8. Verification and Quality Gates
+## 8. Verification Record
 
-| Subsystem | Test Files | Coverage Target | Verification Criteria | Status |
-|---|---|---|---|---|
-| Core & Migrations (Phase 0) | `test_core.py` | > 90% | Zero loss schema upgrades, connection pooling | Verified & Landed (Commit `e111c43`) |
-| Scanner & DLP (Phase 1 & 2) | `test_scanner.py`, `test_dlp.py` | > 92% | 42 Gitleaks rules + Shannon entropy pre-filtering | Verified & Landed (Commit `5b9fd25`) |
-| AST Diff & Atoms (Phase 1) | `test_ast_inspector.py`, `test_extraction.py` | > 90% | Function/class boundaries, $O(1)$ set lookups | Verified & Landed (Commit `5ebcda3`) |
-| Humanizer & Critic Gate (Phase 3) | `test_humanizer.py`, `test_critic.py` | > 95% | 35+ tells stripped, 0 em-dashes, HN Critic | Verified & Landed (Commit `5b2c86a`) |
-| Visual Diff Cards (Phase 4) | `test_visual_cards.py` | > 88% | 84-col limit, 14-line limit, WCAG AA contrast | Verified & Landed (Commit `8bbb4d0`) |
-| Review Dashboard (Phase 5) | `test_approval_gateways.py` | > 85% | Loopback binding, CSRF tokens, REST endpoints | Verified & Landed (Commit `e4667d1`) |
-| Multi-Platform Publishing (Phase 6) | `test_publishers.py` | > 90% | Pure httpx, UTF-8 byte facets, Restli v2 | Verified & Landed (Commit `7e8c9f0`) |
-| CLI & MCP Server (Phase 7) | `test_cli.py`, `test_mcp.py` | > 90% | End-to-end command flow, stdio JSON-RPC 2.0 | Verified & Landed (Commit `d86c9be`) |
-| Launch Collateral (Phase 8) | `projects/lore/content/` | 100% | Full technical launch collateral suite | Verified & Landed (Commit `c76a946`) |
-| Senior Audit Hardening (Phase 9) | All 14 test modules (59 tests) | 100% | Path traversal sandboxing, ReDoS fix, descriptor cleanup | Verified & Landed (Commit `dd4f5c2`) |
+Beta-readiness verification is recorded in Section 11 and [`BETA_READINESS_PLAN.md`](./BETA_READINESS_PLAN.md). Historical test counts and coverage targets below this section were not measured as current coverage and should not be used as release claims.
 
----
+## 9. Market and Dogfooding Evidence
 
-## 9. Dogfooding Case Studies
+Older competitor notes, market estimates, example quotes, and repository case studies are research hypotheses or internal examples. They are not customer interviews, paid user evidence, or independently verified case studies. Validate them before using them in public marketing or pricing decisions.
 
-Lore is actively dogfooded against three distinct real-world repositories to validate its extraction, sanitization, and voice engines:
+## 10. Repository and Release State
 
-1. **Lore itself (`projects/lore`):**
-   * Stack: Python 3.12, Click, Rich, Pydantic, SQLite, Jinja2.
-   * Evidence: Full development history spanning CLI creation, 3-pass anti-slop engine, local web server, and MCP integration.
-   * Focus: Feature ship announcements, architectural trade-offs, and technical launch articles.
-
-2. **Veltr (`projects/veltr`):**
-   * Stack: Next.js, TypeScript, Tailwind, FastAPI, PostgreSQL, Docker Compose.
-   * Evidence: Single-owner operating system, AES-GCM token encryption, Argon2id auth, Codex quota tracking, immutable context revisions.
-   * Focus: Security engineering war stories, local-first database constraints, and auth design breakdowns.
-
-3. **Ilvuno (`projects/ilvuno`):**
-   * Stack: Go 1.27, Git 2.38.
-   * Evidence: Standalone CLI checking multi-agent change compatibility, zero background daemons, zero telemetry.
-   * Focus: Opinionated CLI development, minimalist Go tool design, and agent verification infrastructure.
+* **Public repository:** `https://github.com/Sumeet-basfore/lore`
+* **Package name in source metadata:** `lore-dev-content`; no package release is published.
+* **License:** MIT, tracked in `LICENSE`.
+* **Current beta branch:** `beta/lore-readiness`.
+* **Release boundary:** The package, GitHub release/tag, and beta announcement remain unpublished unless separately approved.
+* **Current install route:** Clone the repository and install from source as documented in `README.md` and `BETA.md`.
 
 ---
 
-## 10. Live Repository and Deployment State
+## 11. Beta Readiness Work (Approved and In Progress)
 
-* **Public Repository:** `https://github.com/Sumeet-basfore/lore`
-* **Default Branch:** `main` (synchronized with remote)
-* **Active Version:** `2.0.0` (in `pyproject.toml` and `src/lore/__init__.py`)
-* **Verification Status:** 59 passing unit and integration tests across 14 test modules
-* **Execution Boundary:** 100% local loopback (`127.0.0.1`), zero background daemons, zero telemetry
-* **Artifact Deliverables:** Available in `projects/lore/content/`
+* **Goal:** Prepare a small developer beta around the CLI workflow: scan a repository, extract evidence-backed atoms, generate a draft, review it, then export it locally.
+* **Plan:** [`BETA_READINESS_PLAN.md`](./BETA_READINESS_PLAN.md) records the proposed work, files, acceptance checks, and boundaries.
+* **Current status:** Owner approved implementation on branch `beta/lore-readiness` on 2026-11-21. Branch push, pull request, sub-agent review, merge, and push of the merged code are approved.
+* **Remaining readiness work:** Push the branch, open the PR, obtain the requested sub-agent review, fix any findings, merge, and push the merged code.
+* **Release boundary:** Do not publish a package, create a GitHub release or tag, or post a public beta announcement without separate approval.
+* **Slice 1 complete (`3a57f51`, review fixes `f7cd7d7` and `697315d`):** Publication results distinguish provider-confirmed posts, Twitter compose hand-offs, explicit simulations, and failures. Publishing requires an approved draft; missing credentials and validation/client errors do not queue retries. HTTP 408/429 and 5xx errors remain retryable; `Retry-After` supports seconds and HTTP dates, never shortens the provider delay, and falls back to 60 seconds for missing, malformed, or over-one-year values. Focused publisher tests pass (27 tests).
+* **Slice 2 complete (`4f0adad`):** The distribution is now `lore-dev-content`; the `lore` command remains unchanged. Added the MIT license, set the minimum Python version to 3.12, aligned classifiers, and included Jinja templates in built artifacts. Wheel and source archive builds passed; a fresh Python 3.14 virtual environment installed the wheel and ran `lore --help`. PyPI availability was checked on 2026-11-21; the package was not published.
+* **Slice 3 complete (`9aa3875`):** README, beta guide, context, and four launch/release drafts now match the CLI workflow and state its privacy limits. Config output redacts sensitive values, onboarding asks for a provider-specific remote model, and ordinary provider errors stop generation instead of triggering canned text. The explicit `LORE_MOCK_LLM=1` test mode is documented. Focused publisher, CLI, and MCP checks passed (30 tests).
+* **Slice 4 verification:** Full suite passes after both review rounds (86 tests); compileall and `git diff --check` pass. Wheel and source archive builds passed with SPDX `MIT` metadata, `setuptools>=77`, and no setuptools deprecation warning. Both artifacts include the license and prompt templates. A fresh Python 3.14 virtual environment installed the wheel and completed project add, scan, generate, inspect, approve, and export. The resulting wheel ran `lore --help`.
+* **PR:** [#1 — Prepare Lore for a small beta](https://github.com/Sumeet-basfore/lore/pull/1). The requested independent reviewer confirmed all findings are resolved at `697315d` and found no remaining retry-path issues. No GitHub CI workflow is configured; local full-suite, package, and clean-install checks passed.
+* **Current work:** Merge PR #1 and push the merged code.
+* **Next step:** Confirm PR #1 is still open and current, merge it, then fast-forward local `main` to the merged remote state.
 
 
