@@ -1,5 +1,6 @@
 """Telegram Bot 1-tap approval listener and dispatcher via httpx."""
 
+import html
 from typing import Any, Dict, Optional
 import httpx
 
@@ -12,11 +13,13 @@ def build_telegram_payload(
     card_image_url: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Constructs Telegram sendMessage payload with inline keyboard markup."""
+    title_esc = html.escape(draft.title or "Untitled")
+    content_esc = html.escape(draft.humanized_content[:3500])
     text = (
-        f"<b>Lore Review:</b> {draft.title or 'Untitled'}\n"
+        f"<b>Lore Review:</b> {title_esc}\n"
         f"<b>Platform:</b> {draft.platform.value.upper()}\n"
         f"<b>Status:</b> {draft.status.value}\n\n"
-        f"<pre>{draft.humanized_content[:3500]}</pre>"
+        f"<pre>{content_esc}</pre>"
     )
 
     inline_keyboard = [

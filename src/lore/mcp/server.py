@@ -183,7 +183,8 @@ class LoreMCPServer:
                 atom=atom,
                 angle=chosen_angle,
             )
-            raw_output = router.generate(prompt=prompt, force_mock=True)
+            model_override = arguments.get("model")
+            raw_output = router.generate(prompt=prompt, model=model_override)
             humanized, audit = Humanizer.humanize(raw_output)
 
             draft_id = f"draft_{atom.id[:6]}"

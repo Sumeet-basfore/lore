@@ -8,6 +8,7 @@ Features:
 - Ephemeral session token for CSRF protection.
 """
 
+import hmac
 import http.server
 import json
 from pathlib import Path
@@ -19,6 +20,7 @@ import urllib.parse
 import webbrowser
 from typing import Optional, Tuple
 
+from lore.config import get_lore_home
 from lore.core.database import Database
 from lore.core.models import DraftStatus
 
@@ -612,11 +614,16 @@ class LoreReviewRequestHandler(http.server.BaseHTTPRequestHandler):
         pass
 
     def _verify_token(self) -> bool:
+        if not self.session_token:
+            return False
         parsed = urllib.parse.urlparse(self.path)
         params = urllib.parse.parse_qs(parsed.query)
         req_token = params.get("token", [""])[0]
         header_token = self.headers.get("X-Lore-Token", "")
-        return (req_token == self.session_token) or (header_token == self.session_token)
+        return (
+            (bool(req_token) and hmac.compare_digest(req_token, self.session_token))
+            or (bool(header_token) and hmac.compare_digest(header_token, self.session_token))
+        )
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -625,6 +632,7 @@ class LoreReviewRequestHandler(http.server.BaseHTTPRequestHandler):
         if not self._verify_token():
             self.send_response(403)
             self.send_header("Content-Type", "application/json")
+            self.send_header("Referrer-Policy", "no-referrer")
             self.end_headers()
             self.wfile.write(b'{"error": "Forbidden: invalid or missing session token"}')
             return
@@ -632,6 +640,8 @@ class LoreReviewRequestHandler(http.server.BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers()
             self.wfile.write(DASHBOARD_HTML.encode("utf-8"))
             return
@@ -642,6 +652,7 @@ class LoreReviewRequestHandler(http.server.BaseHTTPRequestHandler):
             payload = [d.model_dump(mode="json") for d in drafts]
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
+            self.send_header("Referrer-Policy", "no-referrer")
             self.end_headers()
             self.wfile.write(json.dumps(payload).encode("utf-8"))
             return
@@ -652,13 +663,33 @@ class LoreReviewRequestHandler(http.server.BaseHTTPRequestHandler):
             db = self.db or Database()
             draft = db.get_draft(draft_id)
             if draft and getattr(draft, "card_image_path", None):
-                card_p = Path(draft.card_image_path)
-                if card_p.exists():
+                card_p = Path(draft.card_image_path).resolve()
+                cards_dir = (get_lore_home() / "cards").resolve()
+                lore_home_dir = get_lore_home().resolve()
+                # Strict sandboxing: file must exist, have image extension, and reside in lore_home or project dir
+                is_safe = False
+                if card_p.suffix.lower() in (".png", ".svg") and card_p.is_file():
+                    if card_p.is_relative_to(cards_dir) or card_p.is_relative_to(lore_home_dir):
+                        is_safe = True
+                    elif draft.project_id:
+                        proj = db.get_project(draft.project_id)
+                        if proj and card_p.is_relative_to(Path(proj.path).resolve()):
+                            is_safe = True
+
+                if is_safe:
                     mime = "image/svg+xml" if card_p.suffix == ".svg" else "image/png"
                     self.send_response(200)
                     self.send_header("Content-Type", mime)
+                    self.send_header("Referrer-Policy", "no-referrer")
+                    self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
                     self.end_headers()
                     self.wfile.write(card_p.read_bytes())
+                    return
+                else:
+                    self.send_response(403)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(b'{"error": "Forbidden: unauthorized card image path"}')
                     return
 
             self.send_response(404)

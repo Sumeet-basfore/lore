@@ -38,17 +38,28 @@ def mask_ast_loops(source_code: str, file_type: str = "py") -> str:
             replacements: List[Tuple[int, int, int]] = []
             for node in ast.walk(tree):
                 if isinstance(node, (ast.For, ast.AsyncFor, ast.While)):
-                    if len(node.body) > 1:
+                    if len(node.body) >= 1:
                         first_line = node.body[0].lineno
-                        last_line = node.body[-1].end_lineno or node.body[-1].lineno
+                        last_line = getattr(node.body[-1], "end_lineno", None) or node.body[-1].lineno
                         indent = getattr(node.body[0], "col_offset", 4)
                         replacements.append((first_line, last_line, indent))
 
+            # Filter out child/nested loops if enclosing parent loop is already being masked
+            non_nested: List[Tuple[int, int, int]] = []
+            for r in replacements:
+                is_inner = any(
+                    (parent[0] <= r[0] and r[1] <= parent[1])
+                    for parent in replacements
+                    if parent != r
+                )
+                if not is_inner:
+                    non_nested.append(r)
+
             # Apply replacements from bottom to top to preserve line numbering
-            replacements.sort(key=lambda x: x[0], reverse=True)
-            for start, end, col in replacements:
+            non_nested.sort(key=lambda x: x[0], reverse=True)
+            for start, end, col in non_nested:
                 indent_str = " " * col
-                replacement_text = f"{indent_str}# ... [proprietary implementation hidden]"
+                replacement_text = f"{indent_str}pass  # ... [proprietary implementation hidden]"
                 lines = lines[: start - 1] + [replacement_text] + lines[end:]
 
             return "\n".join(lines)

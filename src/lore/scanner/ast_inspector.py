@@ -177,15 +177,15 @@ class ASTInspector:
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 end_lineno = getattr(node, "end_lineno", node.lineno)
-                if not added_set or any(node.lineno <= l <= end_lineno for l in added_set):
+                if not added_set or any(l in added_set for l in range(node.lineno, end_lineno + 1)):
                     modified_classes.add(node.name)
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 end_lineno = getattr(node, "end_lineno", node.lineno)
-                if not added_set or any(node.lineno <= l <= end_lineno for l in added_set):
+                if not added_set or any(l in added_set for l in range(node.lineno, end_lineno + 1)):
                     modified_functions.add(node.name)
             elif isinstance(node, ast.Assert):
                 end_lineno = getattr(node, "end_lineno", node.lineno)
-                if not added_set or any(node.lineno <= l <= end_lineno for l in added_set):
+                if not added_set or any(l in added_set for l in range(node.lineno, end_lineno + 1)):
                     try:
                         assertion_code = ast.unparse(node.test)
                         test_assertions.append(assertion_code)

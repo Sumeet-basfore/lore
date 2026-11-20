@@ -108,18 +108,22 @@ class DLPScanner:
         # 2. Check Tier 1 Hard Block Regexes
         lines = clean_text.splitlines()
         for line_no, line in enumerate(lines, start=1):
-            if len(line) > 2048:
-                continue
-
-            for pattern, desc in TIER1_HARD_BLOCK_PATTERNS:
-                if re.search(pattern, line):
-                    violation = {
-                        "tier": 1,
-                        "description": desc,
-                        "line": line_no,
-                        "action": "BLOCK",
-                    }
-                    violations.append(violation)
+            chunks = [line] if len(line) <= 2048 else [line[i:i + 1024] for i in range(0, len(line), 896)]
+            matched_for_line = False
+            for chunk in chunks:
+                if matched_for_line:
+                    break
+                for pattern, desc in TIER1_HARD_BLOCK_PATTERNS:
+                    if re.search(pattern, chunk):
+                        violation = {
+                            "tier": 1,
+                            "description": desc,
+                            "line": line_no,
+                            "action": "BLOCK",
+                        }
+                        violations.append(violation)
+                        matched_for_line = True
+                        break
 
         # 3. Shannon Entropy Scan
         entropy_findings = scan_text_entropy(clean_text, repo_path=repo_path, known_shas=known_shas)

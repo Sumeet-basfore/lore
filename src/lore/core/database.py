@@ -2,9 +2,10 @@
 
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional
+from typing import Generator, List, Optional
 
 from lore.config import get_lore_home
 from lore.core.exceptions import DatabaseError
@@ -33,11 +34,17 @@ class Database:
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
-    def _get_connection(self) -> sqlite3.Connection:
+    @contextmanager
+    def _get_connection(self) -> Generator[sqlite3.Connection, None, None]:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON;")
-        return conn
+        conn.execute("PRAGMA busy_timeout = 5000;")
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_db(self) -> None:
         """Initializes tables, indexes, and runs pending migrations."""
@@ -617,6 +624,11 @@ class Database:
                 """
                 INSERT INTO publish_queue (id, draft_id, platform, scheduled_time, attempts, last_error, status, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    attempts = publish_queue.attempts + 1,
+                    scheduled_time = excluded.scheduled_time,
+                    last_error = excluded.last_error,
+                    status = excluded.status
                 """,
                 (
                     item.id,

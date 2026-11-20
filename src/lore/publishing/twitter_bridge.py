@@ -37,7 +37,9 @@ def copy_image_to_clipboard(image_path: Path) -> bool:
     # macOS pbcopy / osascript
     if shutil.which("osascript"):
         try:
-            cmd = f'set the clipboard to (read (POSIX file "{image_path.resolve()}") as «class PNGf»)'
+            resolved_str = str(image_path.resolve())
+            escaped_path = resolved_str.replace("\\", "\\\\").replace('"', '\\"')
+            cmd = f'set the clipboard to (read (POSIX file "{escaped_path}") as «class PNGf»)'
             subprocess.run(["osascript", "-e", cmd], check=True)
             return True
         except Exception:

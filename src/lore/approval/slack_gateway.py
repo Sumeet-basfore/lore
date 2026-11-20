@@ -83,6 +83,12 @@ def send_slack_approval_card(
     commit_url: Optional[str] = None,
 ) -> bool:
     """Dispatches a Slack Block Kit interactive card to a webhook URL."""
+    if not (
+        webhook_url.startswith("https://hooks.slack.com/services/")
+        or webhook_url.startswith("https://hooks.slack.com/workflows/")
+    ):
+        return False
+
     blocks = build_slack_blocks(draft, card_image_url=card_image_url, commit_url=commit_url)
     payload = {"blocks": blocks}
 

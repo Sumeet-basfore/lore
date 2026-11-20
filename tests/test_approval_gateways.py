@@ -99,3 +99,31 @@ def test_local_web_server_lifecycle_and_api(test_db):
         assert updated_draft.status == DraftStatus.APPROVED
     finally:
         server.stop()
+
+
+def test_card_path_traversal_sandboxing(test_db):
+    server = LoreWebReviewServer(start_port=4753, db=test_db)
+    url_str, port = server.start()
+    try:
+        draft = test_db.get_draft("draft_review_1")
+        # Attempt arbitrary file path traversal
+        draft.card_image_path = "/etc/passwd"
+        test_db.save_draft(draft)
+
+        url = f"http://127.0.0.1:{port}/api/drafts/draft_review_1/card?token={server.session_token}"
+        with pytest.raises(urllib.error.HTTPError) as exc_info:
+            urllib.request.urlopen(url)
+        assert exc_info.value.code == 403
+    finally:
+        server.stop()
+
+
+def test_gateway_ssrf_prevention(test_db):
+    from lore.approval.slack_gateway import send_slack_approval_card
+    from lore.approval.discord_gateway import send_discord_approval_card
+
+    draft = test_db.get_draft("draft_review_1")
+    # SSRF attempts to AWS metadata and internal services
+    assert send_slack_approval_card("http://169.254.169.254/latest/meta-data/", draft) is False
+    assert send_slack_approval_card("http://127.0.0.1:8000/internal", draft) is False
+    assert send_discord_approval_card("http://169.254.169.254/latest/meta-data/", draft) is False

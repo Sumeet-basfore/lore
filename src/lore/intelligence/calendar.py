@@ -1,7 +1,7 @@
 """Content Calendar and posting schedule planner."""
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from lore.core.models import ContentAtom, Platform
 from lore.intelligence.angle_finder import AngleFinder
 

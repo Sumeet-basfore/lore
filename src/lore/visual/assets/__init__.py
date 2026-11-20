@@ -1,0 +1,1 @@
+"""Lore Visual Assets package."""

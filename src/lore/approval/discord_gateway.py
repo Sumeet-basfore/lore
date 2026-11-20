@@ -34,6 +34,12 @@ def send_discord_approval_card(
     card_image_url: Optional[str] = None,
 ) -> bool:
     """Dispatches a Discord webhook embed."""
+    if not (
+        webhook_url.startswith("https://discord.com/api/webhooks/")
+        or webhook_url.startswith("https://discordapp.com/api/webhooks/")
+    ):
+        return False
+
     payload = build_discord_payload(draft, card_image_url=card_image_url)
     try:
         resp = httpx.post(webhook_url, json=payload, timeout=10.0)

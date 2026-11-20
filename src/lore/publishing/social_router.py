@@ -96,8 +96,11 @@ class SocialRouter:
         res: PublishResult,
         permanent: bool = False,
     ) -> None:
+        import random
         now = datetime.now(timezone.utc)
-        retry_delay = res.retry_after_seconds or 60
+        base_delay = res.retry_after_seconds or 30
+        jitter = random.uniform(0.85, 1.15)
+        retry_delay = int(base_delay * jitter)
         scheduled_retry = now + timedelta(seconds=retry_delay)
 
         queue_item = PublishQueueItem(
@@ -106,7 +109,7 @@ class SocialRouter:
             platform=Platform(platform_str) if platform_str in [p.value for p in Platform] else Platform.TWITTER,
             scheduled_time=scheduled_retry,
             attempts=1,
-            last_error=res.error,
+            last_error=res.error[:300] if res.error else None,
             status="failed" if permanent else "pending",
         )
         db.enqueue_publish(queue_item)

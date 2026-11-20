@@ -63,3 +63,25 @@ def run_computation(items):
     masked = mask_ast_loops(py_code, file_type="py")
     assert "[proprietary implementation hidden]" in masked
     assert "temp = item * 42" not in masked
+
+
+def test_ast_nested_loop_masking():
+    py_code = """
+def nested(matrix):
+    s = 0
+    for row in matrix:
+        for val in row:
+            s += val * 2
+    return s
+"""
+    masked = mask_ast_loops(py_code, file_type="py")
+    assert "[proprietary implementation hidden]" in masked
+    import ast
+    ast.parse(masked)
+
+
+def test_dlp_catches_secret_in_long_line():
+    padded_secret = " " * 2100 + "AKIAIOSFODNN7EXAMPLE"
+    res = DLPScanner.scan(padded_secret)
+    assert res.status == "BLOCKED"
+
