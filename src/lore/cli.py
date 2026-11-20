@@ -656,5 +656,126 @@ def cmd_export(status: str, format_type: str, output_dir: str):
         console.print(f"  [dim]• {f.name}[/dim]")
 
 
+# ---------------------------------------------------------------------------
+# Visual Card Generator Command
+# ---------------------------------------------------------------------------
+
+@main.command("card")
+@click.option("--diff", "-d", "diff_file", type=click.Path(exists=True), help="Read diff from file instead of git.")
+@click.option("--output", "-o", help="Output PNG/SVG destination path.")
+@click.option("--theme", default="tokyo_night", type=click.Choice(["tokyo_night", "catppuccin_mocha", "one_dark"]))
+@click.option("--aspect-ratio", default="16:9", type=click.Choice(["16:9", "1:1"]))
+def cmd_card(diff_file: Optional[str], output: Optional[str], theme: str, aspect_ratio: str):
+    """Generate high-contrast visual diff card from git diff or file."""
+    from lore.visual.card_generator import generate_diff_card
+    if diff_file:
+        diff_text = Path(diff_file).read_text(encoding="utf-8")
+    else:
+        res = subprocess.run(["git", "diff", "HEAD~1"], capture_output=True, text=True)
+        diff_text = res.stdout or ""
+
+    card_path = generate_diff_card(
+        diff_text=diff_text,
+        output_path=Path(output) if output else None,
+        theme_name=theme,
+        aspect_ratio=aspect_ratio,
+    )
+    console.print(f"[bold green]✓ Visual diff card created:[/bold green] {card_path}")
+
+
+# ---------------------------------------------------------------------------
+# Review Gateway Command (Interactive TUI + Web Dashboard)
+# ---------------------------------------------------------------------------
+
+@main.command("review")
+@click.option("--web", is_flag=True, help="Launch zero-dependency web review dashboard (port 4748).")
+@click.option("--port", default=4748, help="Port for web review dashboard.")
+def cmd_review(web: bool, port: int):
+    """Interactive review gateway for inspecting, editing, and approving drafts."""
+    if web:
+        from lore.approval.local_web import run_local_web_server
+        run_local_web_server(port=port)
+        return
+
+    # Terminal Interactive TUI
+    db = Database()
+    pending = db.list_drafts(status=DraftStatus.DRAFTED)
+    if not pending:
+        console.print("[dim]No pending drafts to review. Generate some with `lore generate`.[/dim]")
+        return
+
+    current_idx = 0
+    while True:
+        draft = pending[current_idx]
+        console.clear()
+        console.print(Panel(
+            f"[bold]Title:[/bold] {draft.title}\n"
+            f"[bold]Platform:[/bold] {draft.platform.value.upper()} | [bold]Status:[/bold] {draft.status.value}\n"
+            f"[bold]Reviewing:[/bold] [{current_idx + 1}/{len(pending)}]\n\n"
+            f"{draft.humanized_content}",
+            title=f"[bold cyan]Lore Terminal Reviewer ({draft.id})[/bold cyan]",
+            border_style="cyan",
+        ))
+        console.print("\n[bold]Commands:[/bold] [green]\\[a\\]pprove[/green] | [red]\\[r\\]eject[/red] | [yellow]\\[e\\]dit in $EDITOR[/yellow] | \\[n\\]ext | \\[p\\]rev | \\[w\\]eb UI | \\[q\\]uit")
+
+        choice = click.getchar().lower()
+        if choice == "a":
+            db.update_draft_status(draft.id, DraftStatus.APPROVED)
+            console.print(f"[bold green]✓ Approved {draft.id}[/bold green]")
+            pending.pop(current_idx)
+            if not pending:
+                console.print("[bold green]All drafts reviewed![/bold green]")
+                break
+            if current_idx >= len(pending):
+                current_idx = max(0, len(pending) - 1)
+        elif choice == "r":
+            db.update_draft_status(draft.id, DraftStatus.REJECTED)
+            console.print(f"[bold red]✗ Rejected {draft.id}[/bold red]")
+            pending.pop(current_idx)
+            if not pending:
+                console.print("[yellow]All drafts reviewed.[/yellow]")
+                break
+            if current_idx >= len(pending):
+                current_idx = max(0, len(pending) - 1)
+        elif choice == "e":
+            editor = os.environ.get("EDITOR", "nano")
+            with tempfile.NamedTemporaryFile(suffix=".md", mode="w+", delete=False) as tf:
+                tf.write(draft.humanized_content)
+                tf_path = tf.name
+            try:
+                subprocess.run([editor, tf_path], check=True)
+                with open(tf_path, "r", encoding="utf-8") as f:
+                    new_text = f.read().strip()
+                if new_text and new_text != draft.humanized_content:
+                    db.update_draft_content(draft.id, new_text)
+                    draft.humanized_content = new_text
+            finally:
+                if os.path.exists(tf_path):
+                    os.remove(tf_path)
+        elif choice in ("n", "\x1b[b"):
+            if current_idx < len(pending) - 1:
+                current_idx += 1
+        elif choice in ("p", "\x1b[a"):
+            if current_idx > 0:
+                current_idx -= 1
+        elif choice == "w":
+            from lore.approval.local_web import run_local_web_server
+            run_local_web_server(port=port)
+            break
+        elif choice in ("q", "\x03"):
+            break
+
+
+# ---------------------------------------------------------------------------
+# MCP Server Command
+# ---------------------------------------------------------------------------
+
+@main.command("mcp")
+def cmd_mcp():
+    """Launch Lore stdio Model Context Protocol (MCP) server for Cursor and Claude Code."""
+    from lore.mcp.server import run_stdio_server
+    run_stdio_server()
+
+
 if __name__ == "__main__":
     main()
