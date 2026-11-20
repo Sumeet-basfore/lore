@@ -104,37 +104,43 @@ To validate that our proposed product architecture directly answers market deman
 
 ### Module 1: Codebase & Git Ingestion Engine
 * **Commit Ingestion:** Parses git logs with commit message, author, timestamp, diff stats (`+lines`, `-lines`), and modified file lists.
-* **AST Symbol Tracing:** Identifies modified classes, exported functions, database schema migrations, and route handlers.
+* **AST Structural Diff Inspection (The "WIP" Commit Handler):** When commit messages have low semantic entropy (e.g. length < 10 chars, or matching `^(wip|fix|test|asdf|update|patch|clean)`), Lore bypasses the message and directly parses the AST to detect modified class names, function signatures, database schema migrations, and route handlers.
 * **Evidence Ledger:** Generates an immutable cryptographic hash of every fact (e.g., `git_sha: 3de4d39`, `loc_delta: +142`, `component: DatabaseRouter`).
 * **Noise Filtering:** Discards merge commits, chore commits (`bump version`, `fix typo`), formatting/linting commits (`prettier`), and vendor directory changes.
 
 ### Module 2: Enterprise DLP & Security Guardrails
 * **Pattern Blacklist:** Pre-scans every diff line against 40+ known secret signatures (AWS keys, OpenAI/Anthropic tokens, GitHub PATs, private SSH keys, Slack webhooks).
-* **Shannon Entropy Scorer:** Flags and redacts any hex or base64 token exceeding entropy threshold $H(X) > 4.5$.
-* **Proprietary Entity Masking:** Allows configurable custom regex rules to obscure internal staging hosts, internal code names, and database URIs.
+* **Mathematically Calibrated Shannon Entropy:** 
+  * Hexadecimal (Base16): Entropy threshold set to $\ge 3.75$ on tokens with length $\ge 24$.
+  * Base64: Entropy threshold set to $\ge 4.8$ on tokens with length $\ge 24$.
+  * Whitelist exemptions for Git 40-char SHAs, UUIDs/GUIDs, package checksums (`sha512-...`), and import paths.
+* **Proprietary Entity & AST Masking:** By default, internal loop bodies of complex math/algorithms are abstracted, displaying only public function signatures to prevent leaking proprietary trade secrets.
 * **Local-First Boundary Guarantee:** No raw code or unsanitized diffs ever leave the developer's localhost or internal CI runner.
 
-### Module 3: 4-Stage Anti-Slop Humanizer
-* **Stage 1 (Angle Matching):** Maps the technical change to one of 4 proven developer archetypes:
+### Module 3: 5-Stage Anti-Slop Humanizer
+* **Stage 1 (Expanded Angle Matching):** Maps the technical change to one of 7 developer archetypes:
   1. *The Architecture Tradeoff* ("Why we chose X over Y").
   2. *The Post-Mortem / Bug Fix* ("How a subtle race condition cost us 4 hours").
   3. *The Before/After Benchmark* ("Cutting memory consumption by 60% with SQLite WAL").
   4. *The Feature Drop* ("Shipping native WebSocket support in 50 lines").
+  5. *The What We Deleted / Negative Code Angle* ("Removing 2,000 lines of boilerplate").
+  6. *The Today I Learned (TIL) / Language Quirk* ("Standard library nuance uncovered").
+  7. *The Zero-to-One Prototype / Hack* ("Building MVP in 100 lines").
 * **Stage 2 (Draft Generation):** Generates draft strictly bound to the Evidence Ledger.
 * **Stage 3 (Banned Token & Slop Scrubbing):** Scans draft against a dictionary of 35+ forbidden marketing clichés (*"delve", "game-changer", "revolutionary", "testament", "supercharge", "harness"*) and replaces or rewrites them.
-* **Stage 4 (Syntax & Cadence Polish):** Enforces sentence length variance, strips pompous transitions, and removes superfluous hype emojis.
+* **Stage 4 (Structural Asymmetry & Texture Injection):** Breaks rigid 4-beat AI essay structures; bans formulaic closing questions; injects real environment specifics (e.g., `Postgres 16.2 on 4-vCPU Hetzner`, exact file names, parenthetical defensive nuances).
+* **Stage 5 (The "Hacker News Critic Pass"):** Evaluates draft through the lens of a cynical senior staff engineer on Hacker News, flagging and eliminating any unsubstantiated performance claims or marketing hype.
 
-### Module 4: Headless Code-to-Image Visual Generator
-* **Syntax Highlighting Engine:** Powered by `resvg-py` with Pygments/Shiki AST styling.
-* **Custom Themes:** Dark mode default (Tokyo Night, Catppuccin, One Dark) with window chrome (macOS traffic light buttons) and language badges.
-* **Diff Visualization:** Green line highlights for additions (`+`), red line highlights for removals (`-`), with auto-truncation for social aspect ratio (1200x675 for Twitter/LinkedIn, 1080x1080 for Instagram/carousels).
-* **Zero Browser Dependency:** Executes natively without requiring heavy headless Chrome downloads.
+### Module 4: High-Performance Visual Asset Generator
+* **Local CLI Mode:** Deterministic SVG generator calculating line heights and character-width grids mathematically, rendered instantly via `resvg-py` (with automatic check for native `freeze` binary).
+* **Hosted Cloud Mode:** Powered by **Satori + Resvg**. Converts JSX/HTML layout to SVG in <20ms without headless Chromium, then renders crisp PNGs in <30ms with 100% CSS styling fidelity.
+* **Syntax Themes & Visual Contrast:** Dark mode default (Tokyo Night, Catppuccin Mocha) with WCAG AA compliant contrast (>4.5:1), macOS traffic light window controls, and subtle viral pill watermark (`lore.dev/diff`).
 
 ### Module 5: Asynchronous Headless Approval Gateway
-* **Interactive Slack Bot:** Posts draft preview, code diff image, target time, and evidence links to `#dev-marketing` channel with two interactive buttons: `[Approve & Schedule]` and `[Regenerate]`.
-* **Discord Webhook Listener:** Mirror functionality for developer communities and indie hacker teams.
-* **Telegram Bot Bridge:** Enables instant 1-tap mobile notification approvals for solo founders on the go.
-* **CLI Terminal Review:** `lore review` command allowing developers to review, edit in `$EDITOR` (vim/nano/code), approve, or reject without leaving the shell.
+* **Local / Open-Source Tier:** Zero-dependency local web dashboard (`lore review --web` at `http://127.0.0.1:4747`) with instantaneous hotkeys (`A` to approve, `E` to edit, `C` to copy).
+* **Pro & Team Hosted Relay:** End-to-end encrypted webhook relay where Slack Block Kit and Discord button interactions (`[Approve & Schedule]`, `[Regenerate]`) are dispatched seamlessly without requiring users to expose public ports.
+* **Mobile Interactive Approvals:** "Approve with Edit" / threaded prompts in Telegram and Slack modals, allowing rapid mobile text touch-ups without throwing away good copy.
+* **CLI Terminal Review:** `lore review` command allowing developers to review, edit in `$EDITOR` (vim/nano/code), approve, or reject directly in the shell.
 
 ### Module 6: Multi-Platform Publishing Engine
 * **Micro-Blogging:** Native support for X (via BYOK API or bridge), LinkedIn (OAuth 2.0 with image attachments), and Bluesky (AT Protocol).
@@ -165,16 +171,26 @@ PHASE 2: Visual Cards & Enterprise DLP (Months 3–4)
 
 PHASE 3: Asynchronous Approval Gateways (Months 5–6)
 ├── Deploy Slack Block Kit and Discord interactive webhook gateways
-├── Implement Telegram 1-tap mobile approval bot
+├── Implement Telegram 1-tap mobile approval bot with "Approve with Edit"
 ├── Ship Dev.to, Hashnode, and GitHub Release publishers
-└── Introduce Lore Team ($79/mo) for B2B startups
+└── Introduce Lore Team ($79/mo base + $19/additional seat) for B2B startups
 
 PHASE 4: Lore Cloud Platform & Team Analytics (Months 7–12)
 ├── Launch hosted multi-repo dashboard and team member permissions
 ├── Ship closed-loop angle performance analytics
-├── Deploy Enterprise self-hosted runner and SSO / SAML integration
-└── Scale enterprise outbound sales targeting DevTools companies ($299–$499/mo)
+├── Deploy Enterprise self-hosted VPC runner and SSO / SAML integration
+└── Scale enterprise outbound sales targeting DevTools companies ($999/mo / $10k–$15k ACV)
 ```
+
+---
+
+## 6. Peer Review Validation & Hardening
+
+This blueprint has undergone rigorous multi-perspective peer review (`LORE-RES-007`) by specialized subagents in Commercial GTM, Technical Architecture, and Developer Experience. Key validations include:
+- **Zero-Friction Ingestion:** AST structural diff inspection catches features even from unstructured `wip` commits.
+- **Audited Mathematical Entropy:** Thresholds adjusted separately for Hex ($\ge 3.75$) and Base64 ($\ge 4.8$) with syntax whitelisting to eliminate false positives.
+- **Enterprise Data Residency:** Zero-Knowledge VPC runner architecture ensures code and secrets never traverse external cloud boundaries.
+- **Sustainable Economics:** Reality-tested unit economics project 75%–84% gross margins with sustainable hosted LLM caps.
 
 ---
 
