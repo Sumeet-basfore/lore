@@ -208,12 +208,13 @@ Older competitor notes, market estimates, example quotes, and repository case st
 * **Goal:** Prepare a small developer beta around the CLI workflow: scan a repository, extract evidence-backed atoms, generate a draft, review it, then export it locally.
 * **Plan:** [`BETA_READINESS_PLAN.md`](./BETA_READINESS_PLAN.md) records the proposed work, files, acceptance checks, and boundaries.
 * **Current status:** Owner approved implementation on branch `beta/lore-readiness` on 2026-11-21. Branch push, pull request, sub-agent review, merge, and push of the merged code are approved.
-* **Remaining readiness work:** Run the final suite, build and clean-install smoke checks, verify docs and diff, then push the branch, open a PR, obtain the requested sub-agent review, fix any findings, merge, and push the merged code.
+* **Remaining readiness work:** Push the branch, open the PR, obtain the requested sub-agent review, fix any findings, merge, and push the merged code.
 * **Release boundary:** Do not publish a package, create a GitHub release or tag, or post a public beta announcement without separate approval.
 * **Slice 1 complete (`3a57f51`):** Publication results now distinguish provider-confirmed posts, Twitter compose hand-offs, explicit simulations, and failures. Publishing requires an approved draft; missing credentials no longer return mock post URLs or create retries. Focused publisher, CLI, and MCP checks passed (27 tests at that stage).
 * **Slice 2 complete (`4f0adad`):** The distribution is now `lore-dev-content`; the `lore` command remains unchanged. Added the MIT license, set the minimum Python version to 3.12, aligned classifiers, and included Jinja templates in built artifacts. Wheel and source archive builds passed; a fresh Python 3.14 virtual environment installed the wheel and ran `lore --help`. PyPI availability was checked on 2026-11-21; the package was not published.
-* **Slice 3 complete:** README, beta guide, context, and four launch/release drafts now match the CLI workflow and state its privacy limits. Config output redacts sensitive values, onboarding asks for a provider-specific remote model, and generation stops on provider errors instead of saving canned text. Focused publisher, CLI, and MCP checks passed (30 tests).
-* **Current work:** Slice 4, final full-suite, package, CLI, and documentation verification.
-* **Next step:** Complete final checks and commit Slice 3, then push the feature branch and open the requested PR.
+* **Slice 3 complete (`9aa3875`):** README, beta guide, context, and four launch/release drafts now match the CLI workflow and state its privacy limits. Config output redacts sensitive values, onboarding asks for a provider-specific remote model, and generation stops on provider errors instead of saving canned text. Focused publisher, CLI, and MCP checks passed (30 tests).
+* **Slice 4 verification complete:** Full suite passed (76 tests). Wheel and source archive builds passed with SPDX `MIT` metadata and no setuptools deprecation warning. Both artifacts include the license and prompt templates. A fresh Python 3.14 virtual environment installed the wheel and completed project add, scan, generate, inspect, approve, and export. The resulting wheel ran `lore --help`.
+* **Current work:** Push `beta/lore-readiness`, open the PR, obtain the requested same-model sub-agent review, address any findings, then merge and push.
+* **Next step:** Commit the final metadata and verification record, then start the PR review sequence.
 
 
