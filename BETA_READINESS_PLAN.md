@@ -1,6 +1,6 @@
 # Lore Beta Readiness Plan
 
-**Status:** Approved for implementation on branch `beta/lore-readiness` (2026-11-21).
+**Status:** Implemented on `beta/lore-readiness` and merged to `main` via PR #1 (merge commit `571ecad`, 2026-11-20 UTC).
 
 ## Goal
 
@@ -85,7 +85,7 @@ Publishing modules are not exposed by the beta CLI, so the user workflow ends at
 
 **Acceptance:** Focused checks and the final suite pass; installation and the documented scan-to-export flow work in a clean environment; known limitations are visible; context and commits match the delivered state.
 
-**Verification:** The full suite passes after both PR review rounds (86 tests), including the retry policy and deadline cases. Wheel and source archive builds passed without setuptools deprecation warnings; Python `>=3.12`, SPDX MIT metadata, the `setuptools>=77` build requirement, license file, and packaged prompt templates were verified. A fresh Python 3.14 virtual environment installed the wheel and completed the documented scan, generate, inspect, approve, and export path. No GitHub CI workflow is configured, so these checks ran locally. [PR #1](https://github.com/Sumeet-basfore/lore/pull/1) is open; merge is pending.
+**Verification:** The full suite passes after both PR review rounds (86 tests), including the retry policy and deadline cases. Wheel and source archive builds passed without setuptools deprecation warnings; Python `>=3.12`, SPDX MIT metadata, the `setuptools>=77` build requirement, license file, and packaged prompt templates were verified. A fresh Python 3.14 virtual environment installed the wheel and completed the documented scan, generate, inspect, approve, and export path. No GitHub CI workflow is configured, so these checks ran locally. [PR #1](https://github.com/Sumeet-basfore/lore/pull/1) merged to `main` (merge commit `571ecad`).
 
 ## Out of scope
 

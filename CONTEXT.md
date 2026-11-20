@@ -203,19 +203,19 @@ Older competitor notes, market estimates, example quotes, and repository case st
 
 ---
 
-## 11. Beta Readiness Work (Approved and In Progress)
+## 11. Beta Readiness Work (Approved and Implemented)
 
 * **Goal:** Prepare a small developer beta around the CLI workflow: scan a repository, extract evidence-backed atoms, generate a draft, review it, then export it locally.
 * **Plan:** [`BETA_READINESS_PLAN.md`](./BETA_READINESS_PLAN.md) records the proposed work, files, acceptance checks, and boundaries.
 * **Current status:** Owner approved implementation on branch `beta/lore-readiness` on 2026-11-21. Branch push, pull request, sub-agent review, merge, and push of the merged code are approved.
-* **Remaining readiness work:** Push the branch, open the PR, obtain the requested sub-agent review, fix any findings, merge, and push the merged code.
+* **Remaining readiness work:** No code work remains within the approved scope. Run an invitation-based beta using the source install guide and collect tester feedback. Package publication, a GitHub release/tag, and a public beta announcement remain separately approved actions.
 * **Release boundary:** Do not publish a package, create a GitHub release or tag, or post a public beta announcement without separate approval.
 * **Slice 1 complete (`3a57f51`, review fixes `f7cd7d7` and `697315d`):** Publication results distinguish provider-confirmed posts, Twitter compose hand-offs, explicit simulations, and failures. Publishing requires an approved draft; missing credentials and validation/client errors do not queue retries. HTTP 408/429 and 5xx errors remain retryable; `Retry-After` supports seconds and HTTP dates, never shortens the provider delay, and falls back to 60 seconds for missing, malformed, or over-one-year values. Focused publisher tests pass (27 tests).
 * **Slice 2 complete (`4f0adad`):** The distribution is now `lore-dev-content`; the `lore` command remains unchanged. Added the MIT license, set the minimum Python version to 3.12, aligned classifiers, and included Jinja templates in built artifacts. Wheel and source archive builds passed; a fresh Python 3.14 virtual environment installed the wheel and ran `lore --help`. PyPI availability was checked on 2026-11-21; the package was not published.
 * **Slice 3 complete (`9aa3875`):** README, beta guide, context, and four launch/release drafts now match the CLI workflow and state its privacy limits. Config output redacts sensitive values, onboarding asks for a provider-specific remote model, and ordinary provider errors stop generation instead of triggering canned text. The explicit `LORE_MOCK_LLM=1` test mode is documented. Focused publisher, CLI, and MCP checks passed (30 tests).
 * **Slice 4 verification:** Full suite passes after both review rounds (86 tests); compileall and `git diff --check` pass. Wheel and source archive builds passed with SPDX `MIT` metadata, `setuptools>=77`, and no setuptools deprecation warning. Both artifacts include the license and prompt templates. A fresh Python 3.14 virtual environment installed the wheel and completed project add, scan, generate, inspect, approve, and export. The resulting wheel ran `lore --help`.
-* **PR:** [#1 — Prepare Lore for a small beta](https://github.com/Sumeet-basfore/lore/pull/1). The requested independent reviewer confirmed all findings are resolved at `697315d` and found no remaining retry-path issues. No GitHub CI workflow is configured; local full-suite, package, and clean-install checks passed.
-* **Current work:** Merge PR #1 and push the merged code.
-* **Next step:** Confirm PR #1 is still open and current, merge it, then fast-forward local `main` to the merged remote state.
+* **PR:** [#1 — Prepare Lore for a small beta](https://github.com/Sumeet-basfore/lore/pull/1) merged to `main` in merge commit `571ecad`. The requested independent reviewer confirmed all findings were resolved at `697315d` and found no remaining retry-path issues. No GitHub CI workflow is configured; local full-suite, package, and clean-install checks passed.
+* **Current status:** Local `main` is synchronized with `origin/main`. The source install route and tester guidance are ready for a small invited beta. No package, GitHub release/tag, or public announcement has been created.
+* **Next step:** Invite a small group of testers, gather feedback through GitHub issues, and use that feedback to decide whether a public release is warranted.
 
 
