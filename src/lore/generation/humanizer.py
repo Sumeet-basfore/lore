@@ -1,14 +1,14 @@
-"""3-Pass Anti-Slop Humanization Engine.
+"""2-Stage Hybrid Anti-Slop Humanization Engine.
 
-Based on Wikipedia AI Cleanup patterns and proven human engineering writing principles.
-Pass 1: Pattern cleansing (strips 29 documented AI writing markers)
-Pass 2: Voice & soul calibration (plain speech, varied rhythm, opinion injection)
-Pass 3: Adversarial self-audit (detects and removes lingering tells)
+Pass 1: Instant deterministic regex scrubbing (<1ms, zero LLM latency)
+Pass 2: Voice & soul rhythm calibration and adversarial self-audit
 """
 
+import math
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+from lore.core.models import LoreConfig
 
 # Prohibited AI words that immediately reveal machine-generated text
 AI_VOCABULARY = [
@@ -51,9 +51,12 @@ AI_VOCABULARY = [
     r"\bmoreover\b",
     r"\bfurthermore\b",
     r"\badditionally\b",
+    r"\beffortlessly\b",
+    r"\bempower\b",
+    r"\bempowering\b",
+    r"\btransformative\b",
 ]
 
-# Vocabulary replacements to maintain natural flow
 VOCAB_REPLACEMENTS = [
     (r"\butilize\b", "use"),
     (r"\butilizes\b", "uses"),
@@ -71,7 +74,6 @@ VOCAB_REPLACEMENTS = [
     (r"\bit should be noted that\b", ""),
 ]
 
-# Copula avoidance replacements (LLMs hate simple is/has)
 COPULA_REPLACEMENTS = [
     (r"\bserves as a\b", "is a"),
     (r"\bserves as an\b", "is an"),
@@ -87,7 +89,6 @@ COPULA_REPLACEMENTS = [
     (r"\bmarks a pivotal moment\b", "is a milestone"),
 ]
 
-# Chatbot conversation artifacts to obliterate
 CHATBOT_PREFIXES = [
     r"^here is (the|a|an) (post|tweet|article|summary|changelog)?:?\s*",
     r"^certainly!?\s*",
@@ -100,51 +101,66 @@ CHATBOT_PREFIXES = [
     r"^great question!?\s*",
 ]
 
-# Decorative emojis to purge
+FORMULAIC_CLOSING_QUESTIONS = [
+    r"(?i)\bwhat do you think\??(?:\s*👇)?",
+    r"(?i)\blet me know (?:what you think|in the comments|below)\.?",
+    r"(?i)\bhave you faced this before\??",
+    r"(?i)\bshare your thoughts below\.?",
+    r"(?i)\bwhat are your thoughts\??",
+]
+
 DECORATIVE_EMOJIS = ["🚀", "💡", "✅", "🔥", "✨", "📌", "🎉", "🌟"]
 
 
 class Humanizer:
-    """Multi-pass anti-slop engine that transforms raw AI output into genuine human prose."""
+    """2-Stage Hybrid Anti-Slop Humanizer that enforces authentic engineering voice."""
 
     @classmethod
-    def humanize(cls, raw_text: str, voice_context: Optional[str] = None) -> Tuple[str, Dict[str, Any]]:
-        """Executes the 3-pass humanization pipeline."""
+    def humanize(
+        cls,
+        text: str,
+        config: Optional[LoreConfig] = None,
+        voice_context: Optional[str] = None,
+    ) -> Tuple[str, Dict[str, Any]]:
+        """Maintains exact return signature: Tuple[str, Dict[str, Any]]."""
+        # If voice_context was passed as second positional argument in older tests
+        if isinstance(config, str) and voice_context is None:
+            voice_context = config
+            config = None
+
         audit_log: Dict[str, Any] = {
             "patterns_cleansed": [],
             "puffs_removed": 0,
             "em_dashes_replaced": 0,
             "chatbot_prefixes_removed": 0,
+            "closing_questions_removed": 0,
             "copula_fixed": 0,
+            "sentence_length_std_dev": 0.0,
         }
 
-        # Pass 1: Pattern cleansing
-        p1_text, audit_log = cls._pass1_cleanse_patterns(raw_text, audit_log)
+        # Stage 1: Deterministic Scrubbing Pass (<1ms)
+        p1_text, audit_log = cls._deterministic_scrub(text, audit_log)
 
-        # Pass 2: Voice & Soul injection
-        p2_text, audit_log = cls._pass2_inject_soul(p1_text, voice_context, audit_log)
+        # Stage 2: Voice & Soul rhythm calibration
+        p2_text, audit_log = cls._calibrate_rhythm(p1_text, voice_context, audit_log)
 
-        # Pass 3: Adversarial Self-Audit
-        p3_text, audit_log = cls._pass3_self_audit(p2_text, audit_log)
-
-        return p3_text.strip(), audit_log
+        return p2_text.strip(), audit_log
 
     @classmethod
-    def _pass1_cleanse_patterns(cls, text: str, audit: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+    def _deterministic_scrub(cls, text: str, audit: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
         cleaned = text
 
         # 1. Strip chatbot preamble
         for pattern in CHATBOT_PREFIXES:
-            match = re.search(pattern, cleaned, re.IGNORECASE)
-            if match:
+            if re.search(pattern, cleaned, re.IGNORECASE):
                 cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE).strip()
                 audit["chatbot_prefixes_removed"] += 1
                 audit["patterns_cleansed"].append("chatbot_preamble")
 
-        # 2. Normalize curly quotes to straight quotes
+        # 2. Normalize quotes
         cleaned = cleaned.replace("“", '"').replace("”", '"').replace("‘", "'").replace("’", "'")
 
-        # 3. Strip em-dashes (replace with commas or periods)
+        # 3. Strip em-dashes
         em_dash_count = cleaned.count("—") + cleaned.count("--")
         if em_dash_count > 0:
             cleaned = re.sub(r"\s*—\s*", ", ", cleaned)
@@ -152,7 +168,7 @@ class Humanizer:
             audit["em_dashes_replaced"] += em_dash_count
             audit["patterns_cleansed"].append("em_dash_crutch")
 
-        # 4. Remove decorative emoji bullet points
+        # 4. Remove decorative emojis
         for emoji in DECORATIVE_EMOJIS:
             if emoji in cleaned:
                 cleaned = cleaned.replace(emoji, "").strip()
@@ -165,7 +181,7 @@ class Humanizer:
                 audit["copula_fixed"] += 1
                 audit["patterns_cleansed"].append(f"copula:{replacement}")
 
-        # 6. Replace overused corporate vocab
+        # 6. Replace corporate vocab
         for pattern, replacement in VOCAB_REPLACEMENTS:
             if re.search(pattern, cleaned, re.IGNORECASE):
                 cleaned = re.sub(pattern, replacement, cleaned, flags=re.IGNORECASE)
@@ -182,70 +198,22 @@ class Humanizer:
             )
             audit["patterns_cleansed"].append("negative_parallelism")
 
-        # 8. Strip tailing negations (", no guessing.", ", no wasted motion.")
-        cleaned = re.sub(r",\s*no\s+(guessing|wasted\s+motion|fuss)\b", "", cleaned, flags=re.IGNORECASE)
+        # 8. Strip formulaic closing questions
+        for pattern in FORMULAIC_CLOSING_QUESTIONS:
+            if re.search(pattern, cleaned):
+                cleaned = re.sub(pattern, "", cleaned).strip()
+                audit["closing_questions_removed"] += 1
+                audit["patterns_cleansed"].append("formulaic_closing_question")
 
-        return cleaned, audit
-
-    @classmethod
-    def _pass2_inject_soul(
-        cls, text: str, voice_context: Optional[str], audit: Dict[str, Any]
-    ) -> Tuple[str, Dict[str, Any]]:
-        lines = [line.rstrip() for line in text.splitlines()]
-        refined_lines = []
-
-        for line in lines:
-            line_str = line.strip()
-            if not line_str:
-                refined_lines.append("")
-                continue
-
-            # Strip bold headers that restate the line (e.g. "**Performance:** Performance improved")
-            restate_match = re.match(r"^\*\*(.+?):\*\*\s*(.+)$", line_str)
-            if restate_match:
-                hdr, content = restate_match.groups()
-                if hdr.lower() in content.lower()[: len(hdr) + 5]:
-                    line_str = content
-                    audit["patterns_cleansed"].append("restarting_bold_header")
-
-            # Remove corporate puffery phrases
-            puffs = [
-                r"\bin today's (rapidly\s+)?evolving (technological\s+)?landscape,?\s*",
-                r"\ba testament to [^,.]+[.,]?",
-                r"\bmarking a pivotal moment\b",
-                r"\bsetting the stage for [^,.]+[.,]?",
-                r"\bexcited to announce (that)?\s*",
-                r"\bthrilled to share (that)?\s*",
-            ]
-            for puff in puffs:
-                if re.search(puff, line_str, re.IGNORECASE):
-                    line_str = re.sub(puff, "", line_str, flags=re.IGNORECASE).strip()
-                    audit["puffs_removed"] += 1
-                    audit["patterns_cleansed"].append("puffery")
-
-            # Capitalize first letter of modified line if needed
-            if line_str and line_str[0].islower() and not line_str.startswith("http"):
-                line_str = line_str[0].upper() + line_str[1:]
-
-            refined_lines.append(line_str)
-
-        return "\n".join(refined_lines), audit
-
-    @classmethod
-    def _pass3_self_audit(cls, text: str, audit: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
-        """Scans for lingering high-frequency AI words and does surgical removal."""
-        cleaned = text
-
+        # 9. Scrub 35+ forbidden AI words
         for ai_word_pattern in AI_VOCABULARY:
             matches = re.findall(ai_word_pattern, cleaned, re.IGNORECASE)
             if matches:
-                # Replace with innocuous or direct wording
                 cleaned = re.sub(ai_word_pattern, "", cleaned, flags=re.IGNORECASE)
-                # Clean up any resulting double spaces
                 cleaned = re.sub(r"\s{2,}", " ", cleaned)
                 audit["patterns_cleansed"].append(f"scrubbed_ai_word:{matches[0]}")
 
-        # Clean trailing chatbot signoffs
+        # 10. Clean trailing chatbot signoffs
         signoffs = [
             r"let me know what you think!?$",
             r"what are your thoughts\?$",
@@ -257,7 +225,53 @@ class Humanizer:
                 cleaned = re.sub(s, "", cleaned, flags=re.IGNORECASE).strip()
                 audit["patterns_cleansed"].append("chatbot_signoff")
 
-        # Ensure no clean spaces before punctuation
+        # 11. Clean spaces before punctuation
         cleaned = re.sub(r"\s+([,.;!?])", r"\1", cleaned)
 
         return cleaned, audit
+
+    @classmethod
+    def _calibrate_rhythm(
+        cls, text: str, voice_context: Optional[str], audit: Dict[str, Any]
+    ) -> Tuple[str, Dict[str, Any]]:
+        lines = [line.rstrip() for line in text.splitlines()]
+        refined_lines = []
+
+        # Remove corporate puffery
+        puffs = [
+            r"\bin today's (rapidly\s+)?evolving (technological\s+)?landscape,?\s*",
+            r"\ba testament to [^,.]+[.,]?",
+            r"\bmarking a pivotal moment\b",
+            r"\bsetting the stage for [^,.]+[.,]?",
+            r"\bexcited to announce (that)?\s*",
+            r"\bthrilled to share (that)?\s*",
+        ]
+
+        for line in lines:
+            line_str = line.strip()
+            if not line_str:
+                refined_lines.append("")
+                continue
+
+            for puff in puffs:
+                if re.search(puff, line_str, re.IGNORECASE):
+                    line_str = re.sub(puff, "", line_str, flags=re.IGNORECASE).strip()
+                    audit["puffs_removed"] += 1
+                    audit["patterns_cleansed"].append("puffery")
+
+            if line_str and line_str[0].islower() and not line_str.startswith("http"):
+                line_str = line_str[0].upper() + line_str[1:]
+
+            refined_lines.append(line_str)
+
+        result = "\n".join(refined_lines)
+
+        # Compute sentence length std dev
+        sentences = re.split(r"[.!?]+", result)
+        lengths = [len(s.split()) for s in sentences if s.strip()]
+        if len(lengths) > 1:
+            mean = sum(lengths) / len(lengths)
+            variance = sum((l - mean) ** 2 for l in lengths) / len(lengths)
+            audit["sentence_length_std_dev"] = round(math.sqrt(variance), 2)
+
+        return result, audit
