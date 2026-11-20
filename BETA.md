@@ -59,7 +59,7 @@ Use a local Ollama endpoint if you do not want Lore to send prompts to a remote 
 
 Evidence records connect a draft to Git commit SHAs, subjects, paths, and change counts. They do not verify every sentence. Lore does not know whether a change improved performance, passed tests, or had a particular user impact unless that information is present in the commit metadata and checked by you. Generated content can still be inaccurate or include unsupported details.
 
-If the selected model is unavailable, Lore stops with an error. It does not save canned mock text as a draft. Check the commit, metric, and file claims yourself before approving or sharing an export.
+With normal settings, if the selected model is unavailable, Lore stops with an error instead of saving a fallback draft. `LORE_MOCK_LLM=1` is an explicit test mode that returns canned example text; do not use that output as project content. Check the commit, metric, and file claims yourself before approving or sharing an export.
 
 ## Report feedback
 

@@ -69,7 +69,7 @@ Generated text can still contain unsupported claims or inaccurate interpretation
 
 The CLI reads commit metadata rather than source diffs. It can miss the reason behind a change when commit messages are vague, and its change counts do not establish impact or performance. Lore does not verify metrics, infer test outcomes, or guarantee that a draft sounds human.
 
-If the selected model is unavailable, generation now stops with an error. It does not create a sample draft as a fallback.
+With normal settings, if the selected model is unavailable, generation stops with an error instead of creating a sample draft. `LORE_MOCK_LLM=1` is an explicit test mode that returns canned example text; do not use its output as project content.
 
 ## Feedback
 
