@@ -1,3 +1,3 @@
 """Lore: CLI-first developer content engine."""
 
-__version__ = "0.1.0"
+__version__ = "2.0.0"

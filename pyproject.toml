@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lore-cli"
-version = "0.1.0"
+version = "2.0.0"
 description = "CLI-first developer content engine: turns git commits and project history into humanized social posts, blogs, and changelogs."
 readme = "README.md"
 authors = [{ name = "Sumeet Basfore", email = "sumeet@basfore.dev" }]
