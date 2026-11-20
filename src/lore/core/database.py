@@ -11,17 +11,19 @@ from lore.core.exceptions import DatabaseError
 from lore.core.models import (
     AtomType,
     ContentAtom,
+    DLPAuditLog,
     Draft,
     DraftStatus,
     EvidenceRecord,
     Platform,
     Project,
+    PublishQueueItem,
     VoiceSample,
 )
 
 
 class Database:
-    """Manages SQLite persistence for projects, content atoms, drafts, and voice samples."""
+    """Manages SQLite persistence for projects, content atoms, drafts, voice samples, DLP audits, and publish queues."""
 
     def __init__(self, db_path: Optional[Path] = None):
         if db_path is None:
@@ -38,7 +40,7 @@ class Database:
         return conn
 
     def _init_db(self) -> None:
-        """Initializes tables and indexes."""
+        """Initializes tables, indexes, and runs pending migrations."""
         with self._get_connection() as conn:
             conn.executescript(
                 """
@@ -78,6 +80,11 @@ class Database:
                     status TEXT DEFAULT 'drafted',
                     published_url TEXT,
                     published_at TEXT,
+                    card_image_path TEXT,
+                    dlp_status TEXT DEFAULT 'clean',
+                    dlp_audit_json TEXT,
+                    scheduled_for TEXT,
+                    channel_target TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     FOREIGN KEY (atom_id) REFERENCES content_atoms(id) ON DELETE SET NULL,
@@ -92,13 +99,95 @@ class Database:
                     created_at TEXT NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS dlp_audit_logs (
+                    id TEXT PRIMARY KEY,
+                    target_type TEXT NOT NULL, -- 'commit', 'atom', 'draft'
+                    target_id TEXT NOT NULL,
+                    draft_id TEXT,
+                    scanned_at TEXT NOT NULL,
+                    rules_evaluated INTEGER NOT NULL,
+                    violations_detected INTEGER NOT NULL,
+                    masked_entities_json TEXT,
+                    highest_entropy_score REAL,
+                    status TEXT NOT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS publish_queue (
+                    id TEXT PRIMARY KEY,
+                    draft_id TEXT NOT NULL REFERENCES drafts(id) ON DELETE CASCADE,
+                    platform TEXT NOT NULL,
+                    scheduled_time TEXT NOT NULL,
+                    attempts INTEGER DEFAULT 0,
+                    last_error TEXT,
+                    status TEXT DEFAULT 'pending',
+                    created_at TEXT NOT NULL
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_atoms_project ON content_atoms(project_id);
                 CREATE INDEX IF NOT EXISTS idx_atoms_status ON content_atoms(status);
                 CREATE INDEX IF NOT EXISTS idx_drafts_project ON drafts(project_id);
                 CREATE INDEX IF NOT EXISTS idx_drafts_status ON drafts(status);
                 CREATE INDEX IF NOT EXISTS idx_drafts_platform ON drafts(platform);
+                CREATE INDEX IF NOT EXISTS idx_dlp_target ON dlp_audit_logs(target_type, target_id);
+                CREATE INDEX IF NOT EXISTS idx_publish_queue_status ON publish_queue(status, scheduled_time);
                 """
             )
+            self._migrate_v1_to_v2(conn)
+
+    def _migrate_v1_to_v2(self, conn: sqlite3.Connection) -> None:
+        """Idempotently ensures schema v2 columns and tables exist and updates PRAGMA user_version."""
+        cur = conn.execute("PRAGMA user_version;")
+        version = cur.fetchone()[0]
+
+        cur = conn.execute("PRAGMA table_info(drafts);")
+        existing_cols = {row["name"] for row in cur.fetchall()}
+
+        # Add missing columns to drafts if migrating from v1
+        new_columns = [
+            ("card_image_path", "TEXT"),
+            ("dlp_status", "TEXT DEFAULT 'clean'"),
+            ("dlp_audit_json", "TEXT"),
+            ("scheduled_for", "TEXT"),
+            ("channel_target", "TEXT"),
+        ]
+        for col_name, col_type in new_columns:
+            if col_name not in existing_cols:
+                conn.execute(f"ALTER TABLE drafts ADD COLUMN {col_name} {col_type};")
+
+        # Create dlp_audit_logs and publish_queue if not exists
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS dlp_audit_logs (
+                id TEXT PRIMARY KEY,
+                target_type TEXT NOT NULL,
+                target_id TEXT NOT NULL,
+                draft_id TEXT,
+                scanned_at TEXT NOT NULL,
+                rules_evaluated INTEGER NOT NULL,
+                violations_detected INTEGER NOT NULL,
+                masked_entities_json TEXT,
+                highest_entropy_score REAL,
+                status TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS publish_queue (
+                id TEXT PRIMARY KEY,
+                draft_id TEXT NOT NULL REFERENCES drafts(id) ON DELETE CASCADE,
+                platform TEXT NOT NULL,
+                scheduled_time TEXT NOT NULL,
+                attempts INTEGER DEFAULT 0,
+                last_error TEXT,
+                status TEXT DEFAULT 'pending',
+                created_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_dlp_target ON dlp_audit_logs(target_type, target_id);
+            CREATE INDEX IF NOT EXISTS idx_publish_queue_status ON publish_queue(status, scheduled_time);
+            """
+        )
+
+        if version < 2:
+            conn.execute("PRAGMA user_version = 2;")
 
     # ---------------------------------------------------------
     # Project Operations
@@ -260,8 +349,13 @@ class Database:
         with self._get_connection() as conn:
             conn.execute(
                 """
-                INSERT INTO drafts (id, atom_id, project_id, platform, title, raw_content, humanized_content, humanizer_audit, status, published_url, published_at, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO drafts (
+                    id, atom_id, project_id, platform, title, raw_content, 
+                    humanized_content, humanizer_audit, status, published_url, 
+                    published_at, card_image_path, dlp_status, dlp_audit_json, 
+                    scheduled_for, channel_target, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     raw_content = excluded.raw_content,
@@ -270,6 +364,11 @@ class Database:
                     status = excluded.status,
                     published_url = excluded.published_url,
                     published_at = excluded.published_at,
+                    card_image_path = excluded.card_image_path,
+                    dlp_status = excluded.dlp_status,
+                    dlp_audit_json = excluded.dlp_audit_json,
+                    scheduled_for = excluded.scheduled_for,
+                    channel_target = excluded.channel_target,
                     updated_at = excluded.updated_at
                 """,
                 (
@@ -284,6 +383,11 @@ class Database:
                     draft.status.value,
                     draft.published_url,
                     draft.published_at.isoformat() if draft.published_at else None,
+                    draft.card_image_path,
+                    draft.dlp_status,
+                    json.dumps(draft.dlp_audit_json) if draft.dlp_audit_json else None,
+                    draft.scheduled_for.isoformat() if draft.scheduled_for else None,
+                    draft.channel_target,
                     draft.created_at.isoformat(),
                     draft.updated_at.isoformat(),
                 ),
@@ -361,6 +465,7 @@ class Database:
             return cur.rowcount > 0
 
     def _row_to_draft(self, row: sqlite3.Row) -> Draft:
+        keys = row.keys()
         return Draft(
             id=row["id"],
             atom_id=row["atom_id"],
@@ -377,6 +482,19 @@ class Database:
                 if row["published_at"]
                 else None
             ),
+            card_image_path=row["card_image_path"] if "card_image_path" in keys else None,
+            dlp_status=row["dlp_status"] if "dlp_status" in keys and row["dlp_status"] else "clean",
+            dlp_audit_json=(
+                json.loads(row["dlp_audit_json"])
+                if "dlp_audit_json" in keys and row["dlp_audit_json"]
+                else None
+            ),
+            scheduled_for=(
+                datetime.fromisoformat(row["scheduled_for"])
+                if "scheduled_for" in keys and row["scheduled_for"]
+                else None
+            ),
+            channel_target=row["channel_target"] if "channel_target" in keys else None,
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
         )
@@ -423,3 +541,126 @@ class Database:
         with self._get_connection() as conn:
             cur = conn.execute("DELETE FROM voice_samples WHERE id = ?", (sample_id,))
             return cur.rowcount > 0
+
+    # ---------------------------------------------------------
+    # DLP Audit Log Operations (Phase 0 / Phase 2)
+    # ---------------------------------------------------------
+
+    def log_dlp_audit(self, audit: DLPAuditLog) -> None:
+        with self._get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO dlp_audit_logs (
+                    id, target_type, target_id, draft_id, scanned_at,
+                    rules_evaluated, violations_detected, masked_entities_json,
+                    highest_entropy_score, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    audit.id,
+                    audit.target_type,
+                    audit.target_id,
+                    audit.draft_id,
+                    audit.scanned_at.isoformat(),
+                    audit.rules_evaluated,
+                    audit.violations_detected,
+                    json.dumps(audit.masked_entities_json) if audit.masked_entities_json else None,
+                    audit.highest_entropy_score,
+                    audit.status,
+                ),
+            )
+
+    def get_dlp_audits(
+        self,
+        target_type: Optional[str] = None,
+        target_id: Optional[str] = None,
+        draft_id: Optional[str] = None,
+    ) -> List[DLPAuditLog]:
+        query = "SELECT * FROM dlp_audit_logs WHERE 1=1"
+        params = []
+        if target_type:
+            query += " AND target_type = ?"
+            params.append(target_type)
+        if target_id:
+            query += " AND target_id = ?"
+            params.append(target_id)
+        if draft_id:
+            query += " AND draft_id = ?"
+            params.append(draft_id)
+        query += " ORDER BY scanned_at DESC"
+
+        with self._get_connection() as conn:
+            cur = conn.execute(query, params)
+            return [
+                DLPAuditLog(
+                    id=r["id"],
+                    target_type=r["target_type"],
+                    target_id=r["target_id"],
+                    draft_id=r["draft_id"],
+                    scanned_at=datetime.fromisoformat(r["scanned_at"]),
+                    rules_evaluated=r["rules_evaluated"],
+                    violations_detected=r["violations_detected"],
+                    masked_entities_json=json.loads(r["masked_entities_json"]) if r["masked_entities_json"] else None,
+                    highest_entropy_score=r["highest_entropy_score"] or 0.0,
+                    status=r["status"],
+                )
+                for r in cur.fetchall()
+            ]
+
+    # ---------------------------------------------------------
+    # Publish Queue Operations (Phase 0 / Phase 6)
+    # ---------------------------------------------------------
+
+    def enqueue_publish(self, item: PublishQueueItem) -> None:
+        with self._get_connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO publish_queue (id, draft_id, platform, scheduled_time, attempts, last_error, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    item.id,
+                    item.draft_id,
+                    item.platform.value,
+                    item.scheduled_time.isoformat(),
+                    item.attempts,
+                    item.last_error,
+                    item.status,
+                    item.created_at.isoformat(),
+                ),
+            )
+
+    def get_pending_publishes(self, before_time: Optional[datetime] = None) -> List[PublishQueueItem]:
+        query = "SELECT * FROM publish_queue WHERE status = 'pending'"
+        params = []
+        if before_time:
+            query += " AND scheduled_time <= ?"
+            params.append(before_time.isoformat())
+        query += " ORDER BY scheduled_time ASC"
+
+        with self._get_connection() as conn:
+            cur = conn.execute(query, params)
+            return [
+                PublishQueueItem(
+                    id=r["id"],
+                    draft_id=r["draft_id"],
+                    platform=Platform(r["platform"]),
+                    scheduled_time=datetime.fromisoformat(r["scheduled_time"]),
+                    attempts=r["attempts"],
+                    last_error=r["last_error"],
+                    status=r["status"],
+                    created_at=datetime.fromisoformat(r["created_at"]),
+                )
+                for r in cur.fetchall()
+            ]
+
+    def update_publish_status(self, item_id: str, status: str, error: Optional[str] = None) -> None:
+        with self._get_connection() as conn:
+            conn.execute(
+                """
+                UPDATE publish_queue 
+                SET status = ?, attempts = attempts + 1, last_error = ?
+                WHERE id = ?
+                """,
+                (status, error, item_id),
+            )
