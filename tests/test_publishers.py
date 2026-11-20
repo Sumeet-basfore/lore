@@ -1,7 +1,7 @@
 """Tests for Multi-Platform Publishing Engine."""
 
 from datetime import datetime, timedelta, timezone
-from email.utils import format_datetime
+from email.utils import format_datetime, parsedate_to_datetime
 
 import httpx
 import pytest
@@ -243,6 +243,7 @@ def test_http_request_timeout_is_retried(tmp_path, monkeypatch):
 
 def test_retry_after_delta_seconds_is_used(tmp_path, monkeypatch):
     db, draft = _make_draft(tmp_path)
+    before_publish = datetime.now(timezone.utc)
     monkeypatch.setattr(
         LinkedInPublisher,
         "publish",
@@ -254,12 +255,14 @@ def test_retry_after_delta_seconds_is_used(tmp_path, monkeypatch):
     assert result.retryable is True
     assert result.retry_after_seconds == 120
     assert len(db.get_pending_publishes()) == 1
+    assert db.get_pending_publishes()[0].scheduled_time >= before_publish + timedelta(seconds=120)
 
 
 def test_retry_after_http_date_is_parsed(tmp_path, monkeypatch):
     db, draft = _make_draft(tmp_path)
     future = datetime.now(timezone.utc) + timedelta(seconds=120)
     retry_after = format_datetime(future, usegmt=True)
+    retry_deadline = parsedate_to_datetime(retry_after)
     monkeypatch.setattr(
         LinkedInPublisher,
         "publish",
@@ -272,14 +275,16 @@ def test_retry_after_http_date_is_parsed(tmp_path, monkeypatch):
     assert result.retry_after_seconds is not None
     assert 100 <= result.retry_after_seconds <= 120
     assert len(db.get_pending_publishes()) == 1
+    assert db.get_pending_publishes()[0].scheduled_time >= retry_deadline
 
 
-def test_invalid_retry_after_uses_safe_default(tmp_path, monkeypatch):
+@pytest.mark.parametrize("retry_after", ["not-a-date", "31622401", "9" * 5000])
+def test_invalid_or_oversized_retry_after_uses_safe_default(tmp_path, monkeypatch, retry_after):
     db, draft = _make_draft(tmp_path)
     monkeypatch.setattr(
         LinkedInPublisher,
         "publish",
-        _raise_http_status(429, {"Retry-After": "not-a-date"}),
+        _raise_http_status(429, {"Retry-After": retry_after}),
     )
 
     result = SocialRouter.publish_draft(draft.id, Platform.LINKEDIN, db=db)

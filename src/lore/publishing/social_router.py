@@ -3,6 +3,7 @@
 import random
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
+from math import ceil
 from typing import Optional
 import httpx
 
@@ -15,20 +16,30 @@ from lore.publishing.linkedin import LinkedInPublisher
 from lore.publishing.twitter_bridge import TwitterBridgePublisher
 
 
+DEFAULT_RETRY_AFTER_SECONDS = 60
+MAX_RETRY_AFTER_SECONDS = 365 * 24 * 60 * 60
+
+
 def _parse_retry_after(value: Optional[str]) -> int:
     """Parse Retry-After seconds or HTTP date, using a safe delay if invalid."""
     if value and value.isascii() and value.isdigit():
-        return int(value)
+        try:
+            delay = int(value)
+        except (ValueError, OverflowError):
+            return DEFAULT_RETRY_AFTER_SECONDS
+        return delay if delay <= MAX_RETRY_AFTER_SECONDS else DEFAULT_RETRY_AFTER_SECONDS
 
     try:
         retry_at = parsedate_to_datetime(value or "")
     except (TypeError, ValueError, OverflowError):
-        return 60
+        return DEFAULT_RETRY_AFTER_SECONDS
 
     if retry_at.tzinfo is None:
         retry_at = retry_at.replace(tzinfo=timezone.utc)
     delay = (retry_at.astimezone(timezone.utc) - datetime.now(timezone.utc)).total_seconds()
-    return max(0, int(delay))
+    if delay > MAX_RETRY_AFTER_SECONDS:
+        return DEFAULT_RETRY_AFTER_SECONDS
+    return max(0, ceil(delay))
 
 
 class SocialRouter:
@@ -152,8 +163,12 @@ class SocialRouter:
         res: PublishResult,
     ) -> None:
         now = datetime.now(timezone.utc)
-        base_delay = res.retry_after_seconds if res.retry_after_seconds is not None else 30
-        jitter = random.uniform(0.85, 1.15)
+        if res.retry_after_seconds is None:
+            base_delay = 30
+            jitter = random.uniform(0.85, 1.15)
+        else:
+            base_delay = res.retry_after_seconds
+            jitter = random.uniform(1.0, 1.15)
         retry_delay = int(base_delay * jitter)
         scheduled_retry = now + timedelta(seconds=retry_delay)
 
