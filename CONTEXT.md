@@ -217,6 +217,6 @@ Older competitor notes, market estimates, example quotes, and repository case st
 * **PR:** [#1 — Prepare Lore for a small beta](https://github.com/Sumeet-basfore/lore/pull/1) merged to `main` in merge commit `571ecad`. The requested independent reviewer confirmed all findings were resolved at `697315d` and found no remaining retry-path issues. No GitHub CI workflow is configured; local full-suite, package, and clean-install checks passed.
 * **Current status:** Local `main` is synchronized with `origin/main`. The source install route and tester guidance are ready for a small invited beta. No package, GitHub release/tag, or public announcement has been created.
 * **Next step:** Invite a small group of testers, gather feedback through GitHub issues, and use that feedback to decide whether a public release is warranted.
-* **README polish (`docs/readme-polish`):** Added quick navigation, linked the beta guide, separated macOS/Linux and Windows installation steps, and organized the first run into scan, draft/review, and export stages.
+* **README polish (`docs/readme-polish`):** Added quick navigation, linked the beta guide, separated macOS/Linux and Windows installation steps, organized the first run into scan, draft/review, and export stages, and documented the PowerShell editor setting needed for `lore draft edit`.
 
 

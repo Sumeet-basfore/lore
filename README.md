@@ -60,6 +60,12 @@ lore draft approve <draft-id>
 
 You can also review pending drafts in the terminal with `lore review`, or open the local dashboard with `lore review --web`. The dashboard binds to loopback on `127.0.0.1`.
 
+On Windows PowerShell, if `EDITOR` is not set, configure the built-in Notepad editor before using `lore draft edit`:
+
+```powershell
+$env:EDITOR = "notepad"
+```
+
 ### 3. Export the approved draft
 
 ```bash
