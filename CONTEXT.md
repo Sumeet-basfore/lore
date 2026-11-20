@@ -306,10 +306,11 @@ Lore is actively dogfooded against three distinct real-world repositories to val
 * **Goal:** Prepare a small developer beta around the local workflow: scan a repository, extract evidence-backed atoms, generate a draft, review it, then export or hand it off to a platform.
 * **Plan:** [`BETA_READINESS_PLAN.md`](./BETA_READINESS_PLAN.md) records the proposed work, files, acceptance checks, and boundaries.
 * **Current status:** Owner approved implementation on branch `beta/lore-readiness` on 2026-11-21. Branch push, pull request, sub-agent review, merge, and push of the merged code are approved.
-* **Remaining readiness work:** Resolve the `lore-cli` package-name collision; add the promised license file; align Python support metadata; correct product and privacy claims; add a beta setup and feedback guide.
+* **Remaining readiness work:** Correct product and privacy claims; add a beta setup and feedback guide; complete final suite and clean-install checks.
 * **Release boundary:** Do not publish a package, create a GitHub release or tag, or post a public beta announcement without separate approval.
 * **Slice 1 complete:** Publication results now distinguish provider-confirmed posts, Twitter compose hand-offs, explicit simulations, and failures. Publishing requires an approved draft; missing credentials no longer return mock post URLs or create retries. Focused publisher, CLI, and MCP checks pass (27 tests).
-* **Current work:** Slice 2, package identity, license, and Python support metadata.
-* **Next step:** Continue one slice at a time, update this section after each completed slice, then open the requested PR for review.
+* **Slice 2 complete:** The distribution is now `lore-dev-content`; the `lore` command remains unchanged. Added the MIT license, set the minimum Python version to 3.12, aligned classifiers, and included Jinja templates in built artifacts. The wheel and source archive build successfully; a fresh Python 3.14 virtual environment installed the wheel and ran `lore --help` successfully. PyPI availability was checked on 2026-11-21; the package was not published.
+* **Current work:** Slice 3, aligning README and beta-facing copy with implemented behavior and documenting privacy boundaries.
+* **Next step:** Complete the tester guide and final verification, update this section after each slice, then push the branch and open the requested PR for review.
 
 

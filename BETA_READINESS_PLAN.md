@@ -11,7 +11,7 @@ This plan does not include a hosted service, billing, enterprise sales, or a pub
 ## Current findings
 
 1. `LinkedInPublisher`, `BlueskyPublisher`, and `GitHubReleasePublisher` can return successful mock URLs when credentials are missing or `LORE_MOCK_LLM=1`. `SocialRouter` treats every successful result as a completed publication. `TwitterBridgePublisher` returns a web-intent URL, which opens a compose flow rather than confirming a published post. The existing publisher test currently expects mock success to change a draft to `PUBLISHED`.
-2. `pyproject.toml` names the distribution `lore-cli`, which is already used on PyPI by an unrelated codebase tool. The README links to an MIT license, but no `LICENSE` file is tracked. The declared Python minimum is 3.10, while `AGENTS.md` requires Python 3.12 or newer.
+2. The former distribution name `lore-cli` is already used on PyPI by an unrelated codebase tool. The README links to an MIT license, but no `LICENSE` file is tracked. The declared Python minimum is 3.10, while `AGENTS.md` requires Python 3.12 or newer.
 3. The README promises zero hallucinations and zero leaks, calls the DLP engine enterprise-grade, and claims LinkedIn token refresh. These claims need to match code and tested behavior. The repository has no release artifacts or public install path through the intended package name.
 4. The research folder contains market estimates and persona quotations without source references or a described interview method. Treat those as hypotheses, not beta validation.
 
@@ -49,6 +49,8 @@ Direct publishing remains supported only where Lore receives a confirmed platfor
 - Document and verify one clean beta installation route. Build the wheel and source archive, install in a fresh environment, and confirm the `lore` command starts.
 
 **Acceptance:** A new tester can follow one documented install path; package metadata, license file, README, and supported Python versions agree; the selected distribution name is not already taken.
+
+**Status:** Complete. The distribution is `lore-dev-content` (checked against PyPI on 2026-11-21), while its console command remains `lore`. Added the MIT license and aligned Python metadata at `>=3.12`. Wheel and source archive builds passed; a fresh Python 3.14 virtual environment installed the wheel and `lore --help` ran successfully. Prompt templates are present in both artifacts. The package has not been published.
 
 ### Slice 3: Align product claims and privacy details
 

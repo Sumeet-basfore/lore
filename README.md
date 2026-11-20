@@ -1,4 +1,4 @@
-# Lore (`lore-cli`)
+# Lore
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Sumeet-basfore/lore/main/content/lore-banner.svg" alt="Lore Banner" width="100%" onerror="this.style.display='none'"/>
@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/Sumeet-basfore/lore/releases"><img src="https://img.shields.io/badge/version-v2.0.0-blue.svg?style=flat-square" alt="Version"></a>
-  <a href="https://python.org"><img src="https://img.shields.io/badge/python-3.10+-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
+  <a href="https://python.org"><img src="https://img.shields.io/badge/python-3.12+-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
   <a href="https://github.com/Sumeet-basfore/lore/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <a href="#"><img src="https://img.shields.io/badge/tests-59%20passed-success.svg?style=flat-square" alt="Tests"></a>
   <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/protocol-MCP%20stdio-purple.svg?style=flat-square" alt="MCP"></a>
@@ -96,10 +96,12 @@ Developers ship brilliant engineering every week: complex migrations, race condi
 ### 1. Installation
 
 ```bash
-# Clone and install editable package
+# Clone and install the beta from source
 git clone https://github.com/Sumeet-basfore/lore.git
 cd lore
-pip install -e .
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install .
 ```
 
 ### 2. Onboard in One Command
