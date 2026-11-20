@@ -2,6 +2,7 @@
 
 import random
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 from typing import Optional
 import httpx
 
@@ -12,6 +13,22 @@ from lore.publishing.bluesky import BlueskyPublisher
 from lore.publishing.github_release import GitHubReleasePublisher
 from lore.publishing.linkedin import LinkedInPublisher
 from lore.publishing.twitter_bridge import TwitterBridgePublisher
+
+
+def _parse_retry_after(value: Optional[str]) -> int:
+    """Parse Retry-After seconds or HTTP date, using a safe delay if invalid."""
+    if value and value.isascii() and value.isdigit():
+        return int(value)
+
+    try:
+        retry_at = parsedate_to_datetime(value or "")
+    except (TypeError, ValueError, OverflowError):
+        return 60
+
+    if retry_at.tzinfo is None:
+        retry_at = retry_at.replace(tzinfo=timezone.utc)
+    delay = (retry_at.astimezone(timezone.utc) - datetime.now(timezone.utc)).total_seconds()
+    return max(0, int(delay))
 
 
 class SocialRouter:
@@ -71,19 +88,19 @@ class SocialRouter:
 
         except httpx.HTTPStatusError as e:
             status_code = e.response.status_code
-            if status_code == 429:
-                retry_after = int(e.response.headers.get("Retry-After", "60"))
+            if status_code in (408, 429):
+                retry_after = _parse_retry_after(e.response.headers.get("Retry-After"))
                 res = PublishResult(
                     success=False,
                     outcome=PublishOutcome.FAILED,
                     platform=platform.value,
-                    error=f"Rate limited (429). Retry after {retry_after}s",
+                    error=f"Transient client error ({status_code}). Retry after {retry_after}s",
                     retryable=True,
                     retry_after_seconds=retry_after,
                 )
                 cls._handle_failure(db, draft_id, platform.value, res)
                 return res
-            elif status_code in [400, 401, 403]:
+            elif 400 <= status_code < 500:
                 res = PublishResult(
                     success=False,
                     outcome=PublishOutcome.FAILED,
@@ -91,7 +108,7 @@ class SocialRouter:
                     error=f"Client error ({status_code}): {e.response.text[:200]}",
                 )
                 return res
-            else:
+            elif 500 <= status_code < 600:
                 res = PublishResult(
                     success=False,
                     outcome=PublishOutcome.FAILED,
@@ -101,6 +118,13 @@ class SocialRouter:
                 )
                 cls._handle_failure(db, draft_id, platform.value, res)
                 return res
+            else:
+                return PublishResult(
+                    success=False,
+                    outcome=PublishOutcome.FAILED,
+                    platform=platform.value,
+                    error=f"Unexpected HTTP status ({status_code}): {e.response.text[:200]}",
+                )
         except (httpx.TimeoutException, httpx.NetworkError) as e:
             res = PublishResult(
                 success=False,
@@ -128,7 +152,7 @@ class SocialRouter:
         res: PublishResult,
     ) -> None:
         now = datetime.now(timezone.utc)
-        base_delay = res.retry_after_seconds or 30
+        base_delay = res.retry_after_seconds if res.retry_after_seconds is not None else 30
         jitter = random.uniform(0.85, 1.15)
         retry_delay = int(base_delay * jitter)
         scheduled_retry = now + timedelta(seconds=retry_delay)

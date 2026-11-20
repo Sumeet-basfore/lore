@@ -39,7 +39,7 @@ Publishing modules are not exposed by the beta CLI, so the user workflow ends at
 - Review retry queue behavior so credential and validation errors do not create misleading retry loops.
 - Add regression coverage for missing credentials, explicit simulation, confirmed API publication, failed API calls, and Twitter hand-off state.
 
-**Acceptance:** Unapproved drafts never reach a publisher; no mock or hand-off path writes `PUBLISHED`; every publication URL comes from an actual provider response; missing-credential failures do not enter the retry queue.
+**Acceptance:** Unapproved drafts never reach a publisher; no mock or hand-off path writes `PUBLISHED`; every publication URL comes from an actual provider response; missing-credential and validation/client-error failures do not enter the retry queue; transient HTTP errors parse valid `Retry-After` values safely.
 
 ### Slice 2: Make installation and licensing usable
 
@@ -83,7 +83,7 @@ Publishing modules are not exposed by the beta CLI, so the user workflow ends at
 
 **Acceptance:** Focused checks and the final suite pass; installation and the documented scan-to-export flow work in a clean environment; known limitations are visible; context and commits match the delivered state.
 
-**Verification complete:** Full suite passed (76 tests). Wheel and source archive builds passed without setuptools deprecation warnings; Python `>=3.12`, SPDX MIT metadata, the `setuptools>=77` build requirement, license file, and packaged prompt templates were verified. A fresh Python 3.14 virtual environment installed the wheel and completed the documented scan, generate, inspect, approve, and export path. [PR #1](https://github.com/Sumeet-basfore/lore/pull/1) is open; review and merge are pending.
+**Verification:** The initial full suite passed (76 tests), and the suite passes again after PR review fixes (84 tests). Wheel and source archive builds passed without setuptools deprecation warnings; Python `>=3.12`, SPDX MIT metadata, the `setuptools>=77` build requirement, license file, and packaged prompt templates were verified. A fresh Python 3.14 virtual environment installed the wheel and completed the documented scan, generate, inspect, approve, and export path. [PR #1](https://github.com/Sumeet-basfore/lore/pull/1) is open; reviewer confirmation and merge are pending.
 
 ## Out of scope
 

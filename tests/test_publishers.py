@@ -1,5 +1,9 @@
 """Tests for Multi-Platform Publishing Engine."""
 
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
+
+import httpx
 import pytest
 from lore.core.database import Database
 from lore.core.models import Draft, DraftStatus, Platform
@@ -75,6 +79,19 @@ class _FakeClient:
 
     def post(self, *_args, **_kwargs):
         return next(self._responses)
+
+
+def _raise_http_status(status_code, headers=None):
+    def publish(**_kwargs):
+        response = httpx.Response(
+            status_code,
+            headers=headers,
+            content=b"provider response",
+            request=httpx.Request("POST", "https://provider.example/posts"),
+        )
+        response.raise_for_status()
+
+    return publish
 
 
 @pytest.mark.parametrize("publisher", ["linkedin", "bluesky", "github"])
@@ -187,6 +204,89 @@ def test_retryable_failure_enters_retry_queue(tmp_path, monkeypatch):
     assert result.outcome == PublishOutcome.FAILED
     assert len(queued) == 1
     assert queued[0].draft_id == draft.id
+
+
+@pytest.mark.parametrize("status_code", [409, 422])
+def test_http_validation_errors_are_not_retried(tmp_path, monkeypatch, status_code):
+    db, draft = _make_draft(tmp_path)
+    monkeypatch.setattr(LinkedInPublisher, "publish", _raise_http_status(status_code))
+
+    result = SocialRouter.publish_draft(draft.id, Platform.LINKEDIN, db=db)
+
+    assert result.outcome == PublishOutcome.FAILED
+    assert result.retryable is False
+    assert db.get_pending_publishes() == []
+
+
+@pytest.mark.parametrize("status_code", [500, 503])
+def test_http_server_errors_are_retried(tmp_path, monkeypatch, status_code):
+    db, draft = _make_draft(tmp_path)
+    monkeypatch.setattr(LinkedInPublisher, "publish", _raise_http_status(status_code))
+
+    result = SocialRouter.publish_draft(draft.id, Platform.LINKEDIN, db=db)
+
+    assert result.outcome == PublishOutcome.FAILED
+    assert result.retryable is True
+    assert len(db.get_pending_publishes()) == 1
+
+
+def test_http_request_timeout_is_retried(tmp_path, monkeypatch):
+    db, draft = _make_draft(tmp_path)
+    monkeypatch.setattr(LinkedInPublisher, "publish", _raise_http_status(408))
+
+    result = SocialRouter.publish_draft(draft.id, Platform.LINKEDIN, db=db)
+
+    assert result.retryable is True
+    assert result.retry_after_seconds == 60
+    assert len(db.get_pending_publishes()) == 1
+
+
+def test_retry_after_delta_seconds_is_used(tmp_path, monkeypatch):
+    db, draft = _make_draft(tmp_path)
+    monkeypatch.setattr(
+        LinkedInPublisher,
+        "publish",
+        _raise_http_status(429, {"Retry-After": "120"}),
+    )
+
+    result = SocialRouter.publish_draft(draft.id, Platform.LINKEDIN, db=db)
+
+    assert result.retryable is True
+    assert result.retry_after_seconds == 120
+    assert len(db.get_pending_publishes()) == 1
+
+
+def test_retry_after_http_date_is_parsed(tmp_path, monkeypatch):
+    db, draft = _make_draft(tmp_path)
+    future = datetime.now(timezone.utc) + timedelta(seconds=120)
+    retry_after = format_datetime(future, usegmt=True)
+    monkeypatch.setattr(
+        LinkedInPublisher,
+        "publish",
+        _raise_http_status(429, {"Retry-After": retry_after}),
+    )
+
+    result = SocialRouter.publish_draft(draft.id, Platform.LINKEDIN, db=db)
+
+    assert result.retryable is True
+    assert result.retry_after_seconds is not None
+    assert 100 <= result.retry_after_seconds <= 120
+    assert len(db.get_pending_publishes()) == 1
+
+
+def test_invalid_retry_after_uses_safe_default(tmp_path, monkeypatch):
+    db, draft = _make_draft(tmp_path)
+    monkeypatch.setattr(
+        LinkedInPublisher,
+        "publish",
+        _raise_http_status(429, {"Retry-After": "not-a-date"}),
+    )
+
+    result = SocialRouter.publish_draft(draft.id, Platform.LINKEDIN, db=db)
+
+    assert result.retryable is True
+    assert result.retry_after_seconds == 60
+    assert len(db.get_pending_publishes()) == 1
 
 
 def test_twitter_intent_is_a_handoff_not_a_published_post(tmp_path, monkeypatch):
