@@ -31,11 +31,12 @@ lore --help
 ```powershell
 git clone https://github.com/Sumeet-basfore/lore.git
 cd lore
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install .
-lore --help
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install .
+.\.venv\Scripts\lore.exe --help
 ```
+
+These commands use the Python 3 version selected by the launcher and avoid environment activation, which PowerShell's execution policy can block. In the quickstart below, replace `lore` with `.\.venv\Scripts\lore.exe` when running commands in PowerShell.
 
 ## Quickstart
 
