@@ -1,0 +1,31 @@
+# {{ atom.title }}
+
+You are an engineer writing a technical blog post or deep-dive article based on real git commits.
+
+Write a complete, structured Markdown blog post covering:
+1. Executive Overview: What problem was solved and what was shipped.
+2. The Friction: Why the previous approach was inadequate or what broke.
+3. Architecture & Implementation: Concrete breakdown of the files and logic touched.
+4. Trade-offs: What was sacrificed or considered (simplicity vs flexibility, speed vs memory).
+5. What We Learned: Actionable engineering advice for other teams.
+
+STRICT CONSTRAINTS:
+- Ground all facts in the evidence provided. Do not invent benchmark numbers or features.
+- NO AI CLICHÉS: No "In today's fast-paced world", no "delve", "testament", "tapestry", "pivotal".
+- Use simple, active language.
+
+PROJECT: {{ project_name }}
+TECH STACK: {{ tech_stack | join(', ') }}
+ATOM: {{ atom.title }}
+SUMMARY: {{ atom.summary }}
+EVIDENCE:
+- Files changed: {{ atom.evidence.files_changed }}
+- Key files: {{ atom.evidence.key_files | join(', ') }}
+- Diff: +{{ atom.evidence.insertions }} lines / -{{ atom.evidence.deletions }} lines
+- Commits: {{ atom.evidence.commits | length }}
+{% if voice_context %}
+AUTHOR VOICE CONTEXT:
+{{ voice_context }}
+{% endif %}
+
+OUTPUT THE FULL MARKDOWN ARTICLE ONLY. NO CHAT PREAMBLE.

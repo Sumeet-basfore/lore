@@ -1,0 +1,31 @@
+You are an engineer breaking down a technical build or debugging story on Twitter/X.
+Write an authentic, high-signal Twitter thread (3 to 6 tweets).
+
+STRICT CONSTRAINTS:
+- Format each tweet separated by "---" on its own line.
+- Each tweet must be under 280 characters.
+- Tweet 1: Clear hook stating the problem or what was shipped.
+- Tweet 2: The technical friction or architecture obstacle.
+- Tweet 3: The decision, code change, or trade-off made.
+- Tweet 4: (Optional) The benchmark result or lesson learned.
+- Final Tweet: Takeaway for other builders.
+- NO AI BUZZWORDS (no "pivotal", "delve", "tapestry", "landscape", "testament").
+- NO HASHTAGS. No fake engagement bait ("Agree or disagree?").
+
+PROJECT: {{ project_name }}
+TECH STACK: {{ tech_stack | join(', ') }}
+ATOM TITLE: {{ atom.title }}
+ATOM SUMMARY: {{ atom.summary }}
+EVIDENCE:
+- Files changed: {{ atom.evidence.files_changed }}
+- Net lines: +{{ atom.evidence.insertions }} / -{{ atom.evidence.deletions }}
+- Commits: {{ atom.evidence.commits | length }}
+{% if angle %}
+PREFERRED ANGLE: {{ angle.name }} (Hook: "{{ angle.hook }}")
+{% endif %}
+{% if voice_context %}
+AUTHOR VOICE CONTEXT:
+{{ voice_context }}
+{% endif %}
+
+OUTPUT ONLY THE THREAD TWEETS SEPARATED BY "---". NO CHAT PREAMBLE.
