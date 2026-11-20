@@ -1,17 +1,21 @@
 # Lore
 
-Lore is a local-first CLI for turning recent Git history into engineering content drafts. It builds each draft from commit metadata and evidence summaries, then lets you review and export the result.
+Lore is a local-first CLI for turning recent Git history into engineering content drafts. It starts from commit metadata and evidence summaries, then lets you inspect, edit, and export a draft.
 
 <p>
   <a href="https://python.org"><img src="https://img.shields.io/badge/python-3.12+-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="Python 3.12 or newer"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="MIT License"></a>
 </p>
 
-Lore is in beta. Install from source; the package has not been published to PyPI and no release bundle is available yet.
+**Beta:** Install Lore from source; the package is not published to PyPI. See the [beta tester guide](BETA.md) for the workflow and privacy details.
+
+[Quickstart](#quickstart) · [Capabilities](#what-the-current-cli-does) · [Privacy](#privacy-and-data-handling) · [Feedback](#feedback)
 
 ## Install
 
 Requirements: Python 3.12 or newer and Git.
+
+### macOS and Linux
 
 ```bash
 git clone https://github.com/Sumeet-basfore/lore.git
@@ -22,26 +26,47 @@ python -m pip install .
 lore --help
 ```
 
-On Windows PowerShell, activate the environment with `.venv\Scripts\Activate.ps1`.
+### Windows PowerShell
 
-## First workflow
+```powershell
+git clone https://github.com/Sumeet-basfore/lore.git
+cd lore
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install .
+lore --help
+```
+
+## Quickstart
+
+### 1. Register and scan a repository
 
 ```bash
 lore init
 lore project add /path/to/repository --name my-project
 lore scan --project my-project --since "14 days ago"
 lore atoms --project my-project
+```
+
+### 2. Generate and review a draft
+
+```bash
 lore generate --project my-project --platform linkedin
-lore drafts
+# Replace <draft-id> with the ID printed by `lore generate`.
 lore draft show <draft-id>
 lore draft edit <draft-id>
 lore draft approve <draft-id>
+```
+
+You can also review pending drafts in the terminal with `lore review`, or open the local dashboard with `lore review --web`. The dashboard binds to loopback on `127.0.0.1`.
+
+### 3. Export the approved draft
+
+```bash
 lore export --status approved --format markdown --output-dir ./exports
 ```
 
-`lore init` defaults to Ollama at `http://localhost:11434`. Make sure Ollama is running and the selected model is installed. Lore also supports OpenAI, Anthropic, OpenRouter, and Gemini. Remote provider requests contain the generation prompt described in [Privacy and data handling](#privacy-and-data-handling).
-
-You can review pending drafts in the terminal with `lore review`, or use the local dashboard with `lore review --web`. The dashboard binds to loopback on `127.0.0.1`.
+`lore init` defaults to Ollama at `http://localhost:11434`; start Ollama and install the selected model before generating. Lore also supports OpenAI, Anthropic, OpenRouter, and Gemini. When you select a remote provider, it receives the generation prompt described in [Privacy and data handling](#privacy-and-data-handling).
 
 ## What the current CLI does
 
