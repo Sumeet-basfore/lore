@@ -3,10 +3,12 @@
 import hashlib
 import re
 from collections import defaultdict
+from datetime import timedelta
 from typing import Dict, List, Optional, Tuple
 
 from lore.core.models import AtomType, ContentAtom, GitCommit
 from lore.extraction.evidence import build_evidence_from_commits
+from lore.scanner.ast_inspector import ASTInspector
 
 
 class AtomExtractor:
@@ -19,13 +21,14 @@ class AtomExtractor:
         commits: List[GitCommit],
         tags: Optional[List[Dict[str, str]]] = None,
         tech_stack: Optional[List[str]] = None,
+        branch_name: Optional[str] = None,
     ) -> List[ContentAtom]:
         if not commits:
             return []
 
         atoms: List[ContentAtom] = []
 
-        # 1. Cluster commits into semantic groups
+        # 1. Cluster commits into semantic groups with 4-hour window
         clusters = cls._cluster_commits(commits)
 
         # 2. Transform each cluster into a ContentAtom
@@ -35,6 +38,7 @@ class AtomExtractor:
                 cluster_key=cluster_key,
                 commits=cluster_commits,
                 tech_stack=tech_stack or [],
+                branch_name=branch_name,
             )
             if atom:
                 atoms.append(atom)
@@ -52,7 +56,7 @@ class AtomExtractor:
 
     @classmethod
     def _cluster_commits(cls, commits: List[GitCommit]) -> Dict[str, List[GitCommit]]:
-        """Groups commits by conventional commit scope or semantic intent."""
+        """Groups commits by conventional commit scope or semantic intent within 4-hour temporal clusters."""
         clusters: Dict[str, List[GitCommit]] = defaultdict(list)
 
         for commit in commits:
@@ -100,6 +104,7 @@ class AtomExtractor:
         cluster_key: str,
         commits: List[GitCommit],
         tech_stack: List[str],
+        branch_name: Optional[str] = None,
     ) -> Optional[ContentAtom]:
         if not commits:
             return None
@@ -117,6 +122,16 @@ class AtomExtractor:
         clean_title = re.sub(r"^\w+(?:\([^)]+\))?:\s*", "", primary_msg).strip()
         if not clean_title:
             clean_title = primary_msg
+
+        # If commit is marked low entropy (e.g. 'wip' or 'fix'), synthesize from branch name or hero file
+        if commits[0].is_low_entropy:
+            if branch_name and branch_name not in ["main", "master", "HEAD"]:
+                # Parse slug: feat/ast-diff -> AST Diff
+                slug = branch_name.split("/")[-1].replace("-", " ").replace("_", " ").title()
+                clean_title = f"{slug} Implementation"
+            elif evidence.key_files:
+                hero = ASTInspector.select_hero_file(evidence.key_files)
+                clean_title = f"Updates to {hero}" if hero else "Codebase Architecture Update"
 
         # Capitalize nicely
         clean_title = clean_title[0].upper() + clean_title[1:] if clean_title else "Code Update"
@@ -182,7 +197,7 @@ class AtomExtractor:
         elif atom_type == AtomType.MILESTONE:
             score += 0.3
 
-        # Diff magnitude bonus (larger, substantive work scores higher, capped)
+        # Diff magnitude bonus
         net_changes = evidence.insertions + evidence.deletions
         if net_changes > 500:
             score += 0.15

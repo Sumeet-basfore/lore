@@ -16,7 +16,8 @@ class GitScanner:
 
     def __init__(self, repo_path: Path):
         self.repo_path = Path(repo_path).resolve()
-        if not (self.repo_path / ".git").is_dir():
+        # Support worktrees, submodules (.git file) and normal git repos (.git dir)
+        if not (self.repo_path / ".git").exists():
             raise ScannerError(f"Directory is not a git repository: {self.repo_path}")
 
     def _run_git(self, args: List[str]) -> str:
@@ -31,7 +32,25 @@ class GitScanner:
             )
             return res.stdout
         except subprocess.CalledProcessError as e:
+            # Handle empty repository gracefully
+            if "does not have any commits yet" in e.stderr or "unknown revision or path" in e.stderr:
+                return ""
             raise ScannerError(f"Git command failed ('git {' '.join(args)}'): {e.stderr.strip()}") from e
+
+    def get_current_branch(self) -> str:
+        """Returns the active branch name or 'HEAD'."""
+        try:
+            branch = self._run_git(["rev-parse", "--abbrev-ref", "HEAD"]).strip()
+            return branch if branch else "HEAD"
+        except Exception:
+            return "HEAD"
+
+    def get_diff_text(self, commit_sha: str) -> str:
+        """Retrieves patch diff for a given commit."""
+        try:
+            return self._run_git(["show", "--format=", commit_sha])
+        except Exception:
+            return ""
 
     def scan_commits(
         self,
@@ -39,6 +58,7 @@ class GitScanner:
         until: Optional[str] = None,
         max_commits: int = 200,
         exclude_patterns: Optional[List[str]] = None,
+        include_wip: bool = False,
     ) -> List[GitCommit]:
         """Extracts structured commit history with file metrics, excluding secrets and noise."""
         # Use ASCII unit separators: 0x1f between fields, 0x1e between commits
@@ -77,7 +97,6 @@ class GitScanner:
             rest = parts[6]
 
             # The rest contains the body and the numstat lines
-            # Numstat lines follow the commit body and match: <insertions>\t<deletions>\t<path>
             body_lines = []
             files_changed = []
             total_insertions = 0
@@ -90,10 +109,8 @@ class GitScanner:
                 match = re.match(r"^(\d+|-)\s+(\d+|-)\s+(.+)$", line)
                 if match:
                     ins_str, del_str, file_path = match.groups()
-                    # Skip secret files immediately
                     if is_secret_file(file_path):
                         continue
-                    # Check noise files for diff calculations
                     if not is_noise_file(file_path):
                         ins = int(ins_str) if ins_str.isdigit() else 0
                         dels = int(del_str) if del_str.isdigit() else 0
@@ -105,8 +122,8 @@ class GitScanner:
 
             full_message = f"{subject}\n\n{chr(10).join(body_lines)}".strip()
 
-            # Filter noise commits
-            if is_noise_commit(subject, exclude_patterns):
+            is_noise = is_noise_commit(subject, exclude_patterns)
+            if is_noise and not include_wip:
                 continue
 
             try:
@@ -126,10 +143,53 @@ class GitScanner:
                     files_changed=files_changed,
                     insertions=total_insertions,
                     deletions=total_deletions,
+                    is_low_entropy=bool(is_noise),
                 )
             )
 
         return commits
+
+    def scan_working_tree(self) -> Optional[GitCommit]:
+        """Inspects uncommitted changes in working tree and staged index."""
+        try:
+            status_output = self._run_git(["status", "--porcelain"])
+            if not status_output.strip():
+                return None
+
+            diff_stat = self._run_git(["diff", "HEAD", "--numstat"])
+            files_changed = []
+            total_ins = 0
+            total_del = 0
+
+            for line in diff_stat.splitlines():
+                m = re.match(r"^(\d+|-)\s+(\d+|-)\s+(.+)$", line.strip())
+                if m:
+                    ins_str, del_str, file_path = m.groups()
+                    if not is_secret_file(file_path) and not is_noise_file(file_path):
+                        files_changed.append(file_path)
+                        if ins_str.isdigit():
+                            total_ins += int(ins_str)
+                        if del_str.isdigit():
+                            total_del += int(del_str)
+
+            if not files_changed:
+                return None
+
+            return GitCommit(
+                sha="0000000000000000000000000000000000000000",
+                short_sha="working",
+                author="Working Tree",
+                email="local@dev",
+                timestamp=datetime.now(timezone.utc),
+                message="Uncommitted working tree changes",
+                summary="Working tree uncommitted changes",
+                files_changed=files_changed,
+                insertions=total_ins,
+                deletions=total_del,
+                is_low_entropy=False,
+            )
+        except Exception:
+            return None
 
     def get_tags(self) -> List[Dict[str, str]]:
         """Returns release tags with commit hashes."""
