@@ -83,7 +83,7 @@ Publishing modules are not exposed by the beta CLI, so the user workflow ends at
 
 **Acceptance:** Focused checks and the final suite pass; installation and the documented scan-to-export flow work in a clean environment; known limitations are visible; context and commits match the delivered state.
 
-**Verification complete:** Full suite passed (76 tests). Wheel and source archive builds passed without setuptools deprecation warnings; Python `>=3.12`, MIT license metadata, license file, and packaged prompt templates were verified. A fresh Python 3.14 virtual environment installed the wheel and completed the documented scan, generate, inspect, approve, and export path. PR review and merge are pending.
+**Verification complete:** Full suite passed (76 tests). Wheel and source archive builds passed without setuptools deprecation warnings; Python `>=3.12`, MIT license metadata, license file, and packaged prompt templates were verified. A fresh Python 3.14 virtual environment installed the wheel and completed the documented scan, generate, inspect, approve, and export path. [PR #1](https://github.com/Sumeet-basfore/lore/pull/1) is open; review and merge are pending.
 
 ## Out of scope
 

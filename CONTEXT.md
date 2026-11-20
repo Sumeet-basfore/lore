@@ -214,7 +214,8 @@ Older competitor notes, market estimates, example quotes, and repository case st
 * **Slice 2 complete (`4f0adad`):** The distribution is now `lore-dev-content`; the `lore` command remains unchanged. Added the MIT license, set the minimum Python version to 3.12, aligned classifiers, and included Jinja templates in built artifacts. Wheel and source archive builds passed; a fresh Python 3.14 virtual environment installed the wheel and ran `lore --help`. PyPI availability was checked on 2026-11-21; the package was not published.
 * **Slice 3 complete (`9aa3875`):** README, beta guide, context, and four launch/release drafts now match the CLI workflow and state its privacy limits. Config output redacts sensitive values, onboarding asks for a provider-specific remote model, and generation stops on provider errors instead of saving canned text. Focused publisher, CLI, and MCP checks passed (30 tests).
 * **Slice 4 verification complete:** Full suite passed (76 tests). Wheel and source archive builds passed with SPDX `MIT` metadata and no setuptools deprecation warning. Both artifacts include the license and prompt templates. A fresh Python 3.14 virtual environment installed the wheel and completed project add, scan, generate, inspect, approve, and export. The resulting wheel ran `lore --help`.
-* **Current work:** Push `beta/lore-readiness`, open the PR, obtain the requested same-model sub-agent review, address any findings, then merge and push.
-* **Next step:** Commit the final metadata and verification record, then start the PR review sequence.
+* **PR:** [#1 — Prepare Lore for a small beta](https://github.com/Sumeet-basfore/lore/pull/1), opened from `beta/lore-readiness` at `601cb62`. The requested independent review is in progress.
+* **Current work:** Address review findings on the branch, then merge PR #1 and push the merged code.
+* **Next step:** Finish the review against the latest pushed head, make and verify any requested fixes, then merge.
 
 
