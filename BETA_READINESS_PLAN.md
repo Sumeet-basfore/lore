@@ -1,12 +1,12 @@
 # Lore Beta Readiness Plan
 
-**Status:** Draft for owner review. No implementation changes have started.
+**Status:** Approved for implementation on branch `beta/lore-readiness` (2026-11-21).
 
 ## Goal
 
 Prepare Lore for a small, invitation-based beta with developers who can report problems. The beta should let a developer install Lore, scan a local repository, make an evidence-linked draft, review it, and export it without being misled about whether anything was published or how repository data is handled.
 
-This plan does not include a hosted service, billing, enterprise sales, or a public launch. It does not create a GitHub release, tag, or social post. Those require a separate go-ahead after the beta build is ready.
+This plan does not include a hosted service, billing, enterprise sales, or a public launch. The owner has approved pushing the feature branch, opening a pull request, obtaining a sub-agent review, merging, and pushing the merged code. It does not include publishing a package, creating a GitHub release or tag, or posting a beta announcement; those still require separate approval.
 
 ## Current findings
 
@@ -32,7 +32,7 @@ Direct publishing remains supported only where Lore receives a confirmed platfor
 - Represent actual publication, user hand-off, simulation, and failure as distinct outcomes.
 - Treat missing credentials as a visible failure. Do not return example URLs as real posts.
 - Keep model mock mode separate from publishing mock mode. A publisher simulation must be clearly marked and must not set a draft to `PUBLISHED`.
-- Mark a draft `PUBLISHED` only after an external platform confirms creation. Keep Twitter web-intent drafts approved until the user completes the platform flow and Lore can verify the result; otherwise report the hand-off accurately.
+- Mark a draft `PUBLISHED` only after an external platform confirms creation. Keep Twitter web-intent drafts approved and report the hand-off accurately; do not claim Lore can verify completion of the external compose flow.
 - Review retry queue behavior so credential and validation errors do not create misleading retry loops.
 - Add regression coverage for missing credentials, explicit simulation, confirmed API publication, failed API calls, and Twitter hand-off state.
 
@@ -78,7 +78,7 @@ Direct publishing remains supported only where Lore receives a confirmed platfor
 - Building a cloud dashboard, subscriptions, analytics, team permissions, or new social APIs.
 - Promising enterprise security, complete secret detection, or guaranteed human writing.
 - Publishing or announcing the beta on GitHub, Reddit, X, Indie Hackers, or other channels.
-- Pushing commits or creating public releases as part of this preparation.
+- Publishing a package, creating a GitHub release or tag, or posting a beta announcement.
 
 ## Review decisions
 

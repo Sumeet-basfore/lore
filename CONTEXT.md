@@ -301,13 +301,13 @@ Lore is actively dogfooded against three distinct real-world repositories to val
 * **Execution Boundary:** 100% local loopback (`127.0.0.1`), zero background daemons, zero telemetry
 * **Artifact Deliverables:** Available in `projects/lore/content/`
 
-## 11. Beta Readiness Work (Pending Review)
+## 11. Beta Readiness Work (Approved and In Progress)
 
 * **Goal:** Prepare a small developer beta around the local workflow: scan a repository, extract evidence-backed atoms, generate a draft, review it, then export or hand it off to a platform.
 * **Plan:** [`BETA_READINESS_PLAN.md`](./BETA_READINESS_PLAN.md) records the proposed work, files, acceptance checks, and boundaries.
-* **Current status:** Plan drafted for owner review. No implementation changes have started in this beta-readiness task.
+* **Current status:** Owner approved implementation on branch `beta/lore-readiness` on 2026-11-21. Branch push, pull request, sub-agent review, merge, and push of the merged code are approved.
 * **Key issues to address if approved:** Prevent mock and compose-handoff results from being recorded as published; resolve the `lore-cli` package-name collision; add the promised license file; align Python support metadata; correct product and privacy claims; add a beta setup and feedback guide.
-* **Release boundary:** This preparation does not publish a package, push commits, create a GitHub release, or post a public beta announcement.
-* **Next step:** Wait for owner review of the proposed scope. If approved, implement and document one slice at a time, updating this section after each completed slice.
+* **Release boundary:** Do not publish a package, create a GitHub release or tag, or post a public beta announcement without separate approval.
+* **Next step:** Implement one slice at a time, update this section after each completed slice, then open the requested PR for review.
 
 
