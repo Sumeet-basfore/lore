@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
-from lore.publishing.base import PublishResult
+from lore.publishing.base import PublishOutcome, PublishResult
 
 
 def compute_byte_facets(text: str) -> List[Dict[str, Any]]:
@@ -57,11 +57,25 @@ class BlueskyPublisher:
         user = handle or os.getenv("BLUESKY_HANDLE")
         password = app_password or os.getenv("BLUESKY_APP_PASSWORD")
 
-        if not user or not password or os.getenv("LORE_MOCK_LLM", "0") == "1":
+        if os.getenv("LORE_MOCK_PUBLISHING", "0") == "1":
             return PublishResult(
                 success=True,
+                outcome=PublishOutcome.SIMULATED,
                 platform="bluesky",
-                published_url="https://bsky.app/profile/user.bsky.social/post/mock12345",
+                message="Simulated Bluesky publication; no post was sent.",
+            )
+
+        missing = []
+        if not user:
+            missing.append("BLUESKY_HANDLE")
+        if not password:
+            missing.append("BLUESKY_APP_PASSWORD")
+        if missing:
+            return PublishResult(
+                success=False,
+                outcome=PublishOutcome.FAILED,
+                platform="bluesky",
+                error=f"Bluesky publishing requires {', '.join(missing)}.",
             )
 
         with httpx.Client(timeout=30.0) as client:
@@ -119,6 +133,8 @@ class BlueskyPublisher:
 
             return PublishResult(
                 success=True,
+                outcome=PublishOutcome.PUBLISHED,
                 platform="bluesky",
-                published_url=f"https://bsky.app/profile/{user}/post/{rkey}",
+                published_url=f"https://bsky.app/profile/{user}/post/{rkey}" if rkey else None,
+                message=None if rkey else "Bluesky accepted the post but did not return a record URI.",
             )

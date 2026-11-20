@@ -7,7 +7,7 @@ from typing import Optional
 
 import httpx
 
-from lore.publishing.base import PublishResult
+from lore.publishing.base import PublishOutcome, PublishResult
 
 
 def format_linkedin_monospace(text: str) -> str:
@@ -43,12 +43,25 @@ class LinkedInPublisher:
 
         formatted_content = format_linkedin_monospace(content)
 
-        if not token or not author or os.getenv("LORE_MOCK_LLM", "0") == "1":
-            # Mock or offline mode
+        if os.getenv("LORE_MOCK_PUBLISHING", "0") == "1":
             return PublishResult(
                 success=True,
+                outcome=PublishOutcome.SIMULATED,
                 platform="linkedin",
-                published_url="https://www.linkedin.com/feed/update/urn:li:share:mock12345",
+                message="Simulated LinkedIn publication; no post was sent.",
+            )
+
+        missing = []
+        if not token:
+            missing.append("LINKEDIN_ACCESS_TOKEN")
+        if not author:
+            missing.append("LINKEDIN_AUTHOR_URN")
+        if missing:
+            return PublishResult(
+                success=False,
+                outcome=PublishOutcome.FAILED,
+                platform="linkedin",
+                error=f"LinkedIn publishing requires {', '.join(missing)}.",
             )
 
         headers = {
@@ -77,6 +90,16 @@ class LinkedInPublisher:
             post_urn = resp.headers.get("x-restli-id", "unknown")
             return PublishResult(
                 success=True,
+                outcome=PublishOutcome.PUBLISHED,
                 platform="linkedin",
-                published_url=f"https://www.linkedin.com/feed/update/{post_urn}",
+                published_url=(
+                    f"https://www.linkedin.com/feed/update/{post_urn}"
+                    if post_urn != "unknown"
+                    else None
+                ),
+                message=(
+                    None
+                    if post_urn != "unknown"
+                    else "LinkedIn accepted the post but did not return a post identifier."
+                ),
             )

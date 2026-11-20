@@ -306,8 +306,10 @@ Lore is actively dogfooded against three distinct real-world repositories to val
 * **Goal:** Prepare a small developer beta around the local workflow: scan a repository, extract evidence-backed atoms, generate a draft, review it, then export or hand it off to a platform.
 * **Plan:** [`BETA_READINESS_PLAN.md`](./BETA_READINESS_PLAN.md) records the proposed work, files, acceptance checks, and boundaries.
 * **Current status:** Owner approved implementation on branch `beta/lore-readiness` on 2026-11-21. Branch push, pull request, sub-agent review, merge, and push of the merged code are approved.
-* **Key issues to address if approved:** Prevent mock and compose-handoff results from being recorded as published; resolve the `lore-cli` package-name collision; add the promised license file; align Python support metadata; correct product and privacy claims; add a beta setup and feedback guide.
+* **Remaining readiness work:** Resolve the `lore-cli` package-name collision; add the promised license file; align Python support metadata; correct product and privacy claims; add a beta setup and feedback guide.
 * **Release boundary:** Do not publish a package, create a GitHub release or tag, or post a public beta announcement without separate approval.
-* **Next step:** Implement one slice at a time, update this section after each completed slice, then open the requested PR for review.
+* **Slice 1 complete:** Publication results now distinguish provider-confirmed posts, Twitter compose hand-offs, explicit simulations, and failures. Publishing requires an approved draft; missing credentials no longer return mock post URLs or create retries. Focused publisher, CLI, and MCP checks pass (27 tests).
+* **Current work:** Slice 2, package identity, license, and Python support metadata.
+* **Next step:** Continue one slice at a time, update this section after each completed slice, then open the requested PR for review.
 
 

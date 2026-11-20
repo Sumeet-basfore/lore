@@ -1,15 +1,13 @@
 """Multi-platform social router with retry backoff and rate limit handling."""
 
-import os
 import random
-import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from typing import Optional
 import httpx
 
 from lore.core.database import Database
-from lore.core.models import Draft, DraftStatus, LoreConfig, Platform, PublishQueueItem
-from lore.publishing.base import PublishResult
+from lore.core.models import DraftStatus, LoreConfig, Platform, PublishQueueItem
+from lore.publishing.base import PublishOutcome, PublishResult
 from lore.publishing.bluesky import BlueskyPublisher
 from lore.publishing.github_release import GitHubReleasePublisher
 from lore.publishing.linkedin import LinkedInPublisher
@@ -29,7 +27,20 @@ class SocialRouter:
     ) -> PublishResult:
         draft = db.get_draft(draft_id)
         if not draft:
-            return PublishResult(success=False, platform=platform.value, error=f"Draft {draft_id} not found")
+            return PublishResult(
+                success=False,
+                outcome=PublishOutcome.FAILED,
+                platform=platform.value,
+                error=f"Draft {draft_id} not found.",
+            )
+
+        if draft.status != DraftStatus.APPROVED:
+            return PublishResult(
+                success=False,
+                outcome=PublishOutcome.FAILED,
+                platform=platform.value,
+                error="Approve the draft before publishing it.",
+            )
 
         content = draft.humanized_content
         image_path = draft.card_image_path
@@ -44,12 +55,16 @@ class SocialRouter:
             elif platform == Platform.GITHUB or platform == Platform.CHANGELOG:
                 res = GitHubReleasePublisher.publish(draft=draft)
             else:
-                # Default clipboard fallback
-                res = TwitterBridgePublisher.publish(content=content, image_path=image_path)
+                return PublishResult(
+                    success=False,
+                    outcome=PublishOutcome.FAILED,
+                    platform=platform.value,
+                    error=f"Publishing to {platform.value} is not supported.",
+                )
 
-            if res.success:
+            if res.success and res.outcome == PublishOutcome.PUBLISHED:
                 db.update_draft_status(draft_id, DraftStatus.PUBLISHED, published_url=res.published_url)
-            else:
+            elif res.outcome == PublishOutcome.FAILED and res.retryable:
                 cls._handle_failure(db, draft_id, platform.value, res)
 
             return res
@@ -60,8 +75,10 @@ class SocialRouter:
                 retry_after = int(e.response.headers.get("Retry-After", "60"))
                 res = PublishResult(
                     success=False,
+                    outcome=PublishOutcome.FAILED,
                     platform=platform.value,
                     error=f"Rate limited (429). Retry after {retry_after}s",
+                    retryable=True,
                     retry_after_seconds=retry_after,
                 )
                 cls._handle_failure(db, draft_id, platform.value, res)
@@ -69,23 +86,38 @@ class SocialRouter:
             elif status_code in [400, 401, 403]:
                 res = PublishResult(
                     success=False,
+                    outcome=PublishOutcome.FAILED,
                     platform=platform.value,
                     error=f"Client error ({status_code}): {e.response.text[:200]}",
                 )
-                cls._handle_failure(db, draft_id, platform.value, res, permanent=True)
                 return res
             else:
                 res = PublishResult(
                     success=False,
+                    outcome=PublishOutcome.FAILED,
                     platform=platform.value,
                     error=f"Server error ({status_code}): {e.response.text[:200]}",
+                    retryable=True,
                 )
                 cls._handle_failure(db, draft_id, platform.value, res)
                 return res
-        except Exception as e:
-            res = PublishResult(success=False, platform=platform.value, error=str(e))
+        except (httpx.TimeoutException, httpx.NetworkError) as e:
+            res = PublishResult(
+                success=False,
+                outcome=PublishOutcome.FAILED,
+                platform=platform.value,
+                error=str(e),
+                retryable=True,
+            )
             cls._handle_failure(db, draft_id, platform.value, res)
             return res
+        except Exception as e:
+            return PublishResult(
+                success=False,
+                outcome=PublishOutcome.FAILED,
+                platform=platform.value,
+                error=str(e),
+            )
 
     @classmethod
     def _handle_failure(
@@ -94,9 +126,7 @@ class SocialRouter:
         draft_id: str,
         platform_str: str,
         res: PublishResult,
-        permanent: bool = False,
     ) -> None:
-        import random
         now = datetime.now(timezone.utc)
         base_delay = res.retry_after_seconds or 30
         jitter = random.uniform(0.85, 1.15)
@@ -110,6 +140,6 @@ class SocialRouter:
             scheduled_time=scheduled_retry,
             attempts=1,
             last_error=res.error[:300] if res.error else None,
-            status="failed" if permanent else "pending",
+            status="pending",
         )
         db.enqueue_publish(queue_item)

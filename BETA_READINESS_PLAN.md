@@ -32,11 +32,12 @@ Direct publishing remains supported only where Lore receives a confirmed platfor
 - Represent actual publication, user hand-off, simulation, and failure as distinct outcomes.
 - Treat missing credentials as a visible failure. Do not return example URLs as real posts.
 - Keep model mock mode separate from publishing mock mode. A publisher simulation must be clearly marked and must not set a draft to `PUBLISHED`.
+- Require `DraftStatus.APPROVED` before dispatching any publication attempt.
 - Mark a draft `PUBLISHED` only after an external platform confirms creation. Keep Twitter web-intent drafts approved and report the hand-off accurately; do not claim Lore can verify completion of the external compose flow.
 - Review retry queue behavior so credential and validation errors do not create misleading retry loops.
 - Add regression coverage for missing credentials, explicit simulation, confirmed API publication, failed API calls, and Twitter hand-off state.
 
-**Acceptance:** No mock or hand-off path writes `PUBLISHED`; every success URL comes from an actual provider response; failures explain the needed action without exposing credentials.
+**Acceptance:** Unapproved drafts never reach a publisher; no mock or hand-off path writes `PUBLISHED`; every publication URL comes from an actual provider response; missing-credential failures do not enter the retry queue.
 
 ### Slice 2: Make installation and licensing usable
 
