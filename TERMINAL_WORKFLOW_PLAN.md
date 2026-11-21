@@ -1,6 +1,6 @@
 # Current-Project Terminal Workflow Plan
 
-**Status:** Approved for implementation; work is in progress.
+**Status:** Approved for implementation; command scoping is implemented and install documentation is in progress.
 **Branch:** `feat/cwd-aware-terminal-workflow`
 **Date:** 2026-11-21
 
@@ -41,6 +41,8 @@ lore export --status approved --output-dir ./exports
 On the first project-scoped command in an unregistered repository, Lore should identify the Git root and ask before registering it. A non-interactive invocation should not prompt or write to the project registry; it should say to run `lore project add .` from the detected Git root (and print the root path if the current directory is nested). `lore project add .` remains available as the explicit path.
 
 Running `lore` with no subcommand should show short, context-aware help: the detected repository, whether it is registered, and the next valid command. The first version should not add an interactive menu or shell. Generation remains an explicit action; if no atoms exist, Lore tells the user to run `lore scan` first.
+
+The terminal presentation should stay focused: a compact Lore context panel, consistent rounded tables for project data, and clear draft/review panels with the next command shown. Keep output readable without color and do not add decorative emoji or unsupported claims.
 
 ## Resolution rules
 
@@ -103,6 +105,12 @@ Keep the supported source-install route until the global installer passes clean-
 - Install using the documented user-level route in a temporary tool environment, invoke `lore` from outside the Lore checkout, then verify installation and upgrade from both a repository root and nested directory.
 - Verify the no-project, unregistered-repository, non-interactive, explicit `--project`, and `--all` cases.
 - Update README, BETA.md, and CONTEXT.md to match the implemented behavior. Do not claim a PyPI release unless one is separately approved and published.
+
+## Implementation progress
+
+- Slice 1 is committed as `a0cd570`: Git-root discovery and normalized project-path lookup, with nested-directory and worktree coverage.
+- Slice 2 is implemented and verified: current-repository defaults, first-use confirmation, multi-project generation guard, terminal review/export filters, and the compact Rich terminal presentation. The full suite passes (107 tests); the slice commit is being prepared.
+- Slice 3 installation guidance and isolated pipx VCS-install verification are in progress.
 
 ## Acceptance criteria
 

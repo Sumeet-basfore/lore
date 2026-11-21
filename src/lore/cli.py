@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import sys
 import tempfile
 import uuid
 from datetime import datetime, timezone
@@ -9,15 +10,17 @@ from pathlib import Path
 from typing import Optional
 
 import click
+from rich import box
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 from lore import __version__
 from lore.config import load_config, save_config, update_config
 from lore.core.database import Database
-from lore.core.exceptions import LoreError
+from lore.core.exceptions import DatabaseError, LoreError
 from lore.core.models import AtomType, Draft, DraftStatus, Platform, Project, VoiceSample
 from lore.extraction.atom_extractor import AtomExtractor
 from lore.generation.humanizer import Humanizer
@@ -26,10 +29,132 @@ from lore.generation.voice import VoiceCalibrator
 from lore.intelligence.angle_finder import AngleFinder
 from lore.intelligence.calendar import ContentCalendar
 from lore.publishing.exporter import DraftExporter
+from lore.project_context import find_git_root
 from lore.scanner.git_scanner import GitScanner
 from lore.scanner.project_walker import ProjectWalker
 
 console = Console()
+
+
+def _is_interactive() -> bool:
+    """Return whether this process can safely ask the user questions."""
+    return sys.stdin.isatty() and sys.stdout.isatty()
+
+
+def _register_project(
+    db: Database,
+    path: Path,
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+) -> Project:
+    repo_path = find_git_root(path) or path
+    repo_path = repo_path.expanduser().resolve()
+
+    existing_path = db.get_project_by_path(repo_path)
+    if existing_path:
+        return existing_path
+
+    project_name = name or repo_path.name
+    existing_name = db.get_project(project_name)
+    if existing_name:
+        raise click.ClickException(
+            f"Project name '{project_name}' is already used for {existing_name.path}. Choose another name with --name."
+        )
+
+    inspection = ProjectWalker.inspect(repo_path)
+    project_description = description or inspection.get("readme_description") or "Developer project"
+    project_id = f"proj_{project_name.lower().replace(' ', '_')}"
+    if db.get_project(project_id):
+        project_id = f"proj_{uuid.uuid4().hex[:12]}"
+
+    project = Project(
+        id=project_id,
+        name=project_name,
+        path=str(repo_path),
+        description=project_description,
+        tech_stack=inspection.get("tech_stack", []),
+    )
+    try:
+        db.add_project(project)
+    except DatabaseError as exc:
+        existing_path = db.get_project_by_path(repo_path)
+        if existing_path:
+            return existing_path
+        raise click.ClickException(str(exc)) from exc
+    return project
+
+
+def _resolve_project_scope(db: Database, explicit_project: Optional[str] = None) -> Optional[Project]:
+    if explicit_project:
+        project = db.get_project(explicit_project)
+        if not project:
+            raise click.ClickException(f"Project '{explicit_project}' was not found. Run `lore project list` to see registered projects.")
+        return project
+
+    repo_root = find_git_root()
+    if repo_root is None:
+        return None
+
+    project = db.get_project_by_path(repo_root)
+    if project:
+        return project
+
+    suggested_name = repo_root.name
+    if db.get_project(suggested_name):
+        suggested_name = f"{repo_root.name}-{repo_root.parent.name}"
+    while db.get_project(suggested_name):
+        suggested_name = f"{suggested_name}-2"
+    setup_command = f'lore project add . --name "{suggested_name}"'
+    if not _is_interactive():
+        raise click.ClickException(f"This repository is not registered. From {repo_root}, run: {setup_command}")
+
+    if not click.confirm(f"Register '{repo_root}' as Lore project '{suggested_name}'?", default=False):
+        raise click.ClickException(f"No project was added. From {repo_root}, run: {setup_command} when ready.")
+
+    project_name = suggested_name
+    while db.get_project(project_name):
+        project_name = click.prompt("Project name", default=f"{project_name}-2")
+
+    project = _register_project(db, repo_root, name=project_name)
+    console.print(
+        Panel.fit(
+            f"[bold]Project registered[/bold]\n[dim]{project.path}[/dim]",
+            border_style="green",
+        )
+    )
+    return project
+
+
+def _show_home() -> None:
+    db = Database()
+    repo_root = find_git_root()
+    project = db.get_project_by_path(repo_root) if repo_root else None
+
+    details = Table.grid(padding=(0, 2))
+    details.add_column(style="bold cyan", no_wrap=True)
+    details.add_column(style="white")
+    if project:
+        details.add_row("Project", Text(project.name))
+        details.add_row("Current repository", Text(str(repo_root)))
+        details.add_row("Next", "lore scan  ·  lore atoms  ·  lore generate  ·  lore review")
+    elif repo_root:
+        details.add_row("Current repository", Text(str(repo_root)))
+        details.add_row("Status", "Not registered")
+        details.add_row("Next", f'From the root, run: lore project add . --name "{repo_root.name}"')
+    else:
+        details.add_row("Location", "Not inside a Git repository")
+        details.add_row("Next", "Run lore init, then cd into a Git repository")
+
+    console.print(
+        Panel(
+            details,
+            title=f"[bold green]Lore[/bold green] [dim]v{__version__}[/dim]",
+            subtitle="Local-first developer content",
+            border_style="green",
+            box=box.ROUNDED,
+            padding=(1, 2),
+        )
+    )
 
 
 def _is_sensitive_config_key(key: str) -> bool:
@@ -37,11 +162,25 @@ def _is_sensitive_config_key(key: str) -> bool:
     return any(part in lowered for part in ("key", "token", "secret", "password"))
 
 
-@click.group()
+def _styled_table(title: str, header_style: str = "bold cyan") -> Table:
+    return Table(
+        title=title,
+        show_header=True,
+        header_style=header_style,
+        box=box.ROUNDED,
+        border_style="bright_black",
+        padding=(0, 1),
+        expand=True,
+    )
+
+
+@click.group(invoke_without_command=True, no_args_is_help=False)
 @click.version_option(version=__version__, prog_name="lore")
-def main():
+@click.pass_context
+def main(ctx: click.Context):
     """Lore: CLI-first developer content engine. Turn git commits into humanized posts."""
-    pass
+    if ctx.invoked_subcommand is None and not ctx.resilient_parsing:
+        _show_home()
 
 
 # ---------------------------------------------------------------------------
@@ -142,30 +281,16 @@ def group_project():
 def cmd_project_add(path: str, name: Optional[str], description: Optional[str]):
     """Register a project repository to watch."""
     repo_path = Path(path)
-    proj_name = name or repo_path.name
-    proj_id = f"proj_{proj_name.lower().replace(' ', '_')}"
-
     db = Database()
-    existing = db.get_project(proj_name)
-    if existing:
-        console.print(f"[yellow]Project '{proj_name}' is already registered at {existing.path}[/yellow]")
+    normalized_path = find_git_root(repo_path) or repo_path.resolve()
+    existing_path = db.get_project_by_path(normalized_path)
+    if existing_path:
+        console.print(f"[yellow]Project '{existing_path.name}' is already registered at {existing_path.path}[/yellow]")
         return
+    project = _register_project(db, normalized_path, name=name, description=description)
 
-    # Inspect project structure
-    inspection = ProjectWalker.inspect(repo_path)
-    desc = description or inspection.get("readme_description") or "Developer project"
-
-    project = Project(
-        id=proj_id,
-        name=proj_name,
-        path=str(repo_path),
-        description=desc,
-        tech_stack=inspection.get("tech_stack", []),
-    )
-    db.add_project(project)
-
-    console.print(f"[bold green]✓ Registered project '{proj_name}'[/bold green]")
-    console.print(f"  Path: [dim]{repo_path}[/dim]")
+    console.print(f"[bold green]✓ Registered project '{project.name}'[/bold green]")
+    console.print(f"  Path: [dim]{project.path}[/dim]")
     console.print(f"  Stack: [cyan]{', '.join(project.tech_stack) or 'Generic'}[/cyan]")
 
 
@@ -179,7 +304,7 @@ def cmd_project_list():
         console.print("[dim]No projects registered yet. Run `lore project add <path>` to get started.[/dim]")
         return
 
-    table = Table(title="Watched Projects", show_header=True, header_style="bold cyan")
+    table = _styled_table("Watched Projects")
     table.add_column("Name", style="bold")
     table.add_column("Path", style="dim")
     table.add_column("Tech Stack", style="cyan")
@@ -217,28 +342,42 @@ def cmd_scan(project: Optional[str], since: str, scan_all: bool):
     db = Database()
     cfg = load_config()
 
-    if scan_all or not project:
+    if scan_all and project:
+        raise click.UsageError("Use either --all or --project, not both.")
+
+    if scan_all:
         projects = db.list_projects()
         if not projects:
             console.print("[yellow]No projects to scan. Register one with `lore project add <path>`.[/yellow]")
             return
-    else:
-        p = db.get_project(project)
-        if not p:
-            console.print(f"[bold red]Project '{project}' not found.[/bold red]")
+    elif project:
+        selected_project = _resolve_project_scope(db, project)
+        if not selected_project:
             return
-        projects = [p]
+        projects = [selected_project]
+    else:
+        current_project = _resolve_project_scope(db)
+        if current_project:
+            projects = [current_project]
+        elif find_git_root() is None:
+            projects = db.list_projects()
+            if not projects:
+                console.print("[yellow]No projects to scan. Register one with `lore project add <path>`.[/yellow]")
+                return
+        else:
+            return
 
     total_atoms_created = 0
 
     for proj in projects:
         proj_path = Path(proj.path)
-        if not (proj_path / ".git").is_dir():
+        scan_root = find_git_root(proj_path)
+        if scan_root is None:
             console.print(f"[yellow]Skipping {proj.name}: not a git repository.[/yellow]")
             continue
 
         with console.status(f"[cyan]Scanning git history in {proj.name}...[/cyan]"):
-            scanner = GitScanner(proj_path)
+            scanner = GitScanner(scan_root)
             commits = scanner.scan_commits(since=since, exclude_patterns=cfg.exclude_patterns)
             tags = scanner.get_tags()
             atoms = AtomExtractor.extract_atoms(
@@ -268,13 +407,8 @@ def cmd_scan(project: Optional[str], since: str, scan_all: bool):
 def cmd_atoms(project: Optional[str], status: str):
     """View extracted Content Atoms."""
     db = Database()
-    proj_id = None
-    if project:
-        p = db.get_project(project)
-        if not p:
-            console.print(f"[bold red]Project '{project}' not found.[/bold red]")
-            return
-        proj_id = p.id
+    selected_project = _resolve_project_scope(db, project)
+    proj_id = selected_project.id if selected_project else None
 
     filter_status = None if status == "all" else status
     atoms = db.list_atoms(project_id=proj_id, status=filter_status)
@@ -283,7 +417,7 @@ def cmd_atoms(project: Optional[str], status: str):
         console.print("[dim]No atoms found. Run `lore scan` to extract atoms from your projects.[/dim]")
         return
 
-    table = Table(title="Content Atoms (Engineering Accomplishments)", show_header=True, header_style="bold blue")
+    table = _styled_table("Content Atoms · Engineering Accomplishments", header_style="bold blue")
     table.add_column("ID", style="dim", width=12)
     table.add_column("Type", style="magenta")
     table.add_column("Title", style="bold")
@@ -338,30 +472,47 @@ def cmd_generate(
     if atom_id:
         target_atom = db.get_atom(atom_id)
         if not target_atom:
-            console.print(f"[bold red]Atom '{atom_id}' not found.[/bold red]")
-            return
+            raise click.ClickException(f"Atom '{atom_id}' was not found.")
         target_project = db.get_project(target_atom.project_id)
-    elif project:
-        target_project = db.get_project(project)
-        if not target_project:
-            console.print(f"[bold red]Project '{project}' not found.[/bold red]")
-            return
+
+        if project:
+            selected_project = _resolve_project_scope(db, project)
+            if target_project is None or target_project.id != selected_project.id:
+                raise click.ClickException(
+                    f"Atom '{atom_id}' does not belong to project '{project}'. Choose an atom from that project."
+                )
+    else:
+        target_project = _resolve_project_scope(db, project)
+
+    if target_project:
         atoms = db.list_atoms(project_id=target_project.id, status="unprocessed")
         if not atoms:
             atoms = db.list_atoms(project_id=target_project.id)
         if not atoms:
-            console.print(f"[yellow]No atoms found for '{project}'. Run `lore scan -p {project}` first.[/yellow]")
-            return
-        target_atom = atoms[0]
+            raise click.ClickException(
+                f"No atoms found for '{target_project.name}'. Run `lore scan --project {target_project.name}` first."
+            )
+        if target_atom is None:
+            target_atom = atoms[0]
     else:
-        atoms = db.list_atoms(status="unprocessed")
-        if not atoms:
-            atoms = db.list_atoms()
-        if not atoms:
-            console.print("[yellow]No atoms found in database. Run `lore scan` first.[/yellow]")
-            return
-        target_atom = atoms[0]
+        if target_atom is None:
+            all_atoms = db.list_atoms()
+            project_ids = {atom.project_id for atom in all_atoms}
+            if len(project_ids) > 1:
+                raise click.ClickException(
+                    "Atoms belong to multiple projects. Run `lore generate --project <name>` or pass `--atom <id>`."
+                )
+            atoms = db.list_atoms(status="unprocessed")
+            if not atoms:
+                atoms = all_atoms
+            if not atoms:
+                console.print("[yellow]No atoms found in database. Run `lore scan` first.[/yellow]")
+                return
+            target_atom = atoms[0]
         target_project = db.get_project(target_atom.project_id)
+
+    if target_project is None:
+        raise click.ClickException(f"Could not find a project for atom '{target_atom.id}'.")
 
     plat = Platform(platform)
     angles = AngleFinder.find_angles(target_atom)
@@ -413,15 +564,25 @@ def cmd_generate(
     db.update_atom_status(target_atom.id, "drafted")
 
     # Display results
-    console.print("\n" + "=" * 60)
-    console.print(Panel(humanized_output, title=f"[bold green]Humanized Draft ({plat.value.upper()})[/bold green]"))
+    console.print(
+        Panel(
+            Markdown(humanized_output),
+            title=f"[bold green]{plat.value.upper()} draft[/bold green]",
+            border_style="green",
+            box=box.ROUNDED,
+            padding=(1, 2),
+        )
+    )
 
     if audit.get("patterns_cleansed"):
         cleansed_str = ", ".join(audit["patterns_cleansed"][:5])
-        console.print(f"[dim]🛡️  Anti-Slop Cleansed: {cleansed_str}[/dim]")
+        console.print(f"[dim]Anti-slop patterns removed: {cleansed_str}[/dim]")
 
     console.print(f"[bold]Draft ID:[/bold] [cyan]{draft_id}[/cyan]")
-    console.print("[dim]Run `lore draft approve <id>` to approve or `lore draft edit <id>` to refine.[/dim]\n")
+    console.print(
+        f"[bold cyan]Next:[/bold cyan] review with `lore draft show {draft_id}` "
+        f"or approve with `lore draft approve {draft_id}`.\n"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -435,11 +596,8 @@ def cmd_generate(
 def cmd_drafts(project: Optional[str], platform: Optional[str], status: Optional[str]):
     """List generated drafts."""
     db = Database()
-    proj_id = None
-    if project:
-        p = db.get_project(project)
-        if p:
-            proj_id = p.id
+    selected_project = _resolve_project_scope(db, project)
+    proj_id = selected_project.id if selected_project else None
 
     plat = Platform(platform) if platform else None
     stat = DraftStatus(status) if status else None
@@ -449,7 +607,7 @@ def cmd_drafts(project: Optional[str], platform: Optional[str], status: Optional
         console.print("[dim]No drafts found. Generate one with `lore generate`.[/dim]")
         return
 
-    table = Table(title="Content Drafts", show_header=True, header_style="bold green")
+    table = _styled_table("Content Drafts", header_style="bold green")
     table.add_column("Draft ID", style="dim")
     table.add_column("Platform", style="magenta")
     table.add_column("Title", style="bold")
@@ -625,11 +783,8 @@ def cmd_voice_list():
 def cmd_calendar(project: Optional[str]):
     """View 5-day Content Calendar recommendations."""
     db = Database()
-    proj_id = None
-    if project:
-        p = db.get_project(project)
-        if p:
-            proj_id = p.id
+    selected_project = _resolve_project_scope(db, project)
+    proj_id = selected_project.id if selected_project else None
 
     atoms = db.list_atoms(project_id=proj_id)
     if not atoms:
@@ -637,7 +792,7 @@ def cmd_calendar(project: Optional[str]):
         return
 
     schedule = ContentCalendar.plan_week(atoms)
-    table = Table(title="Suggested Content Calendar", show_header=True, header_style="bold yellow")
+    table = _styled_table("Suggested Content Calendar", header_style="bold yellow")
     table.add_column("Day", style="bold")
     table.add_column("Platform", style="magenta")
     table.add_column("Atom Topic", style="cyan")
@@ -655,14 +810,19 @@ def cmd_calendar(project: Optional[str]):
 
 
 @main.command("export")
+@click.option("--project", "-p", help="Export drafts for a specific project")
 @click.option("--status", type=click.Choice(["approved", "drafted", "all"]), default="approved")
 @click.option("--format", "format_type", type=click.Choice(["markdown", "json"]), default="markdown")
 @click.option("--output-dir", "-o", default="./exports", help="Destination directory")
-def cmd_export(status: str, format_type: str, output_dir: str):
+def cmd_export(project: Optional[str], status: str, format_type: str, output_dir: str):
     """Export approved drafts to Markdown or JSON."""
     db = Database()
+    selected_project = _resolve_project_scope(db, project)
     filter_status = None if status == "all" else DraftStatus(status)
-    drafts = db.list_drafts(status=filter_status)
+    drafts = db.list_drafts(
+        project_id=selected_project.id if selected_project else None,
+        status=filter_status,
+    )
 
     if not drafts:
         console.print(f"[yellow]No drafts found matching status '{status}'.[/yellow]")
@@ -708,18 +868,25 @@ def cmd_card(diff_file: Optional[str], output: Optional[str], theme: str, aspect
 # ---------------------------------------------------------------------------
 
 @main.command("review")
+@click.option("--project", "-p", help="Review pending drafts for one project")
 @click.option("--web", is_flag=True, help="Launch zero-dependency web review dashboard (port 4748).")
 @click.option("--port", default=4748, help="Port for web review dashboard.")
-def cmd_review(web: bool, port: int):
+def cmd_review(project: Optional[str], web: bool, port: int):
     """Interactive review gateway for inspecting, editing, and approving drafts."""
     if web:
+        if project:
+            raise click.UsageError("The web dashboard currently shows all projects; remove --project or omit --web.")
         from lore.approval.local_web import run_local_web_server
         run_local_web_server(port=port)
         return
 
     # Terminal Interactive TUI
     db = Database()
-    pending = db.list_drafts(status=DraftStatus.DRAFTED)
+    selected_project = _resolve_project_scope(db, project)
+    pending = db.list_drafts(
+        project_id=selected_project.id if selected_project else None,
+        status=DraftStatus.DRAFTED,
+    )
     if not pending:
         console.print("[dim]No pending drafts to review. Generate some with `lore generate`.[/dim]")
         return
@@ -728,15 +895,23 @@ def cmd_review(web: bool, port: int):
     while True:
         draft = pending[current_idx]
         console.clear()
-        console.print(Panel(
-            f"[bold]Title:[/bold] {draft.title}\n"
-            f"[bold]Platform:[/bold] {draft.platform.value.upper()} | [bold]Status:[/bold] {draft.status.value}\n"
-            f"[bold]Reviewing:[/bold] [{current_idx + 1}/{len(pending)}]\n\n"
-            f"{draft.humanized_content}",
-            title=f"[bold cyan]Lore Terminal Reviewer ({draft.id})[/bold cyan]",
-            border_style="cyan",
-        ))
-        console.print("\n[bold]Commands:[/bold] [green]\\[a\\]pprove[/green] | [red]\\[r\\]eject[/red] | [yellow]\\[e\\]dit in $EDITOR[/yellow] | \\[n\\]ext | \\[p\\]rev | \\[w\\]eb UI | \\[q\\]uit")
+        console.print(
+            Panel(
+                Markdown(draft.humanized_content),
+                title=f"[bold cyan]{draft.title or 'Draft'}[/bold cyan]",
+                subtitle=(
+                    f"{draft.platform.value.upper()} · {draft.status.value} · "
+                    f"{current_idx + 1} of {len(pending)} · {draft.id}"
+                ),
+                border_style="cyan",
+                box=box.ROUNDED,
+                padding=(1, 2),
+            )
+        )
+        console.print(
+            "[bold]Review[/bold]  [green]a[/green] approve  [red]r[/red] reject  "
+            "[yellow]e[/yellow] edit  [dim]n/p[/dim] navigate  [dim]w[/dim] web  [dim]q[/dim] quit"
+        )
 
         choice = click.getchar().lower()
         if choice == "a":
