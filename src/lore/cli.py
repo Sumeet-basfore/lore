@@ -18,7 +18,7 @@ from rich.table import Table
 from rich.text import Text
 
 from lore import __version__
-from lore.config import load_config, save_config, update_config
+from lore.config import get_lore_home, load_config, save_config, update_config
 from lore.core.database import Database
 from lore.core.exceptions import DatabaseError, LoreError
 from lore.core.models import AtomType, Draft, DraftStatus, Platform, Project, VoiceSample
@@ -172,6 +172,14 @@ def _styled_table(title: str, header_style: str = "bold cyan") -> Table:
         padding=(0, 1),
         expand=True,
     )
+
+
+def _safe_image_stem(draft_id: str) -> str:
+    cleaned = "".join(
+        char if char.isascii() and (char.isalnum() or char in "-_") else "_"
+        for char in draft_id
+    ).strip("_")
+    return cleaned or "draft"
 
 
 @click.group(invoke_without_command=True, no_args_is_help=False)
@@ -645,6 +653,8 @@ def cmd_draft_show(draft_id: str):
 
     console.print(f"\n[bold cyan]Draft {draft.id}[/bold cyan] ({draft.platform.value.upper()}) - Status: {draft.status.value}")
     console.print(Panel(draft.humanized_content, title="Content"))
+    if draft.card_image_path:
+        console.print(f"[dim]Image preview: {draft.card_image_path}[/dim]")
 
     if draft.atom_id:
         atom = db.get_atom(draft.atom_id)
@@ -839,6 +849,153 @@ def cmd_export(project: Optional[str], status: str, format_type: str, output_dir
 # ---------------------------------------------------------------------------
 # Visual Card Generator Command
 # ---------------------------------------------------------------------------
+
+@main.group("image")
+def group_image():
+    """Generate and manage draft-linked vector images."""
+    pass
+
+
+@group_image.command("generate")
+@click.argument("draft_id")
+@click.option(
+    "--format",
+    "format_type",
+    type=click.Choice(["svg", "png"]),
+    default="svg",
+    show_default=True,
+    help="SVG is editable. PNG mode also saves its SVG source and needs a rasterizer.",
+)
+@click.option(
+    "--aspect-ratio",
+    type=click.Choice(["16:9", "1:1"]),
+    default="16:9",
+    show_default=True,
+    help="Canvas shape for the generated card.",
+)
+@click.option(
+    "--output-dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    help="Destination inside this project's directory or Lore's data directory.",
+)
+@click.option("--provider", help="Override the configured LLM provider.")
+@click.option("--model", help="Override the configured LLM model.")
+@click.option("--force", is_flag=True, help="Replace existing generated files.")
+def cmd_image_generate(
+    draft_id: str,
+    format_type: str,
+    aspect_ratio: str,
+    output_dir: Optional[Path],
+    provider: Optional[str],
+    model: Optional[str],
+    force: bool,
+):
+    """Create an editable SVG illustration from a saved draft and its evidence."""
+    from lore.visual.card_generator import rasterize_svg_file
+    from lore.visual.illustration import generate_illustration_scene, render_draft_illustration
+
+    db = Database()
+    draft = db.get_draft(draft_id)
+    if not draft:
+        raise click.ClickException(f"Draft '{draft_id}' was not found.")
+
+    project = db.get_project(draft.project_id)
+    if not project:
+        raise click.ClickException(f"Project for draft '{draft_id}' was not found.")
+
+    atom = db.get_atom(draft.atom_id) if draft.atom_id else None
+    project_root = Path(project.path).expanduser().resolve()
+    lore_home = get_lore_home().expanduser().resolve()
+    target_dir = (
+        output_dir.expanduser().resolve()
+        if output_dir is not None
+        else project_root / "lore-media"
+    )
+    if not any(target_dir.is_relative_to(root) for root in (project_root, lore_home)):
+        raise click.ClickException(
+            "Choose an output directory inside the draft's project or Lore's data directory "
+            "so the local dashboard can safely preview it."
+        )
+    if target_dir.exists() and not target_dir.is_dir():
+        raise click.ClickException(f"Output path is not a directory: {target_dir}")
+
+    stem = _safe_image_stem(draft.id)
+    svg_path = target_dir / f"{stem}.svg"
+    png_path = target_dir / f"{stem}.png"
+    output_paths = [svg_path, png_path] if format_type == "png" else [svg_path]
+    if any(path.is_symlink() for path in output_paths):
+        raise click.ClickException("Refusing to overwrite a symbolic link with a generated image.")
+    existing = [path for path in output_paths if path.exists()]
+    if existing and not force:
+        paths = ", ".join(str(path) for path in existing)
+        raise click.ClickException(f"Image file already exists: {paths}. Use --force to replace it.")
+
+    cfg = load_config()
+    active_provider = provider or cfg.llm_provider
+    active_model = model or cfg.llm_model
+    router = LLMRouter(cfg)
+
+    try:
+        with console.status(
+            f"[cyan]Planning SVG illustration via {active_provider}/{active_model}...[/cyan]"
+        ):
+            scene, used_fallback = generate_illustration_scene(
+                router=router,
+                draft=draft,
+                project_name=project.name,
+                atom=atom,
+                aspect_ratio=aspect_ratio,
+                provider=active_provider,
+                model=active_model,
+            )
+        svg_content = render_draft_illustration(
+            draft=draft,
+            project_name=project.name,
+            atom=atom,
+            scene=scene,
+            aspect_ratio=aspect_ratio,
+        )
+    except LoreError as exc:
+        raise click.ClickException(str(exc)) from exc
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    try:
+        target_dir.mkdir(parents=True, exist_ok=True)
+        svg_path.write_text(svg_content, encoding="utf-8")
+    except OSError as exc:
+        raise click.ClickException(f"Could not write SVG image: {exc}") from exc
+
+    preview_path = svg_path
+    if format_type == "png":
+        try:
+            rasterize_svg_file(svg_path, png_path)
+            preview_path = png_path
+        except (RuntimeError, OSError) as exc:
+            db.update_draft_card_image_path(draft.id, str(svg_path))
+            message = str(exc) or f"Could not write PNG image: {exc}"
+            raise click.ClickException(message) from exc
+
+    if not db.update_draft_card_image_path(draft.id, str(preview_path)):
+        raise click.ClickException(f"Draft '{draft_id}' was removed before its image could be attached.")
+
+    if used_fallback:
+        console.print(
+            "[yellow]The model response was not valid scene JSON; used Lore's built-in evidence-strata motif.[/yellow]"
+        )
+    console.print(
+        Panel.fit(
+            f"[bold]Draft image generated[/bold]\n{svg_path}",
+            title="SVG source",
+            border_style="green",
+        )
+    )
+    if format_type == "png":
+        console.print(f"[bold]PNG:[/bold] {png_path}")
+    console.print(
+        f"[bold cyan]Next:[/bold cyan] review it with `lore draft show {draft.id}` "
+        "or `lore review --web`."
+    )
 
 @main.command("card")
 @click.option("--diff", "-d", "diff_file", type=click.Path(exists=True), help="Read diff from file instead of git.")

@@ -282,7 +282,7 @@ def _first_paragraph(content: str) -> str:
 
 def _plain_text(content: str) -> str:
     text = re.sub(r"```.*?```", " ", content, flags=re.DOTALL)
-    text = re.sub(r"!??\[([^\]]+)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"!?\[([^\]]+)\]\([^)]*\)", r"\1", text)
     text = re.sub(r"^\s{0,3}(?:#{1,6}\s*|[-*+]\s+|\d+[.)]\s+)", "", text, flags=re.MULTILINE)
     text = re.sub(r"[`*_>#]", "", text)
     return " ".join(_clean_text(text).split())

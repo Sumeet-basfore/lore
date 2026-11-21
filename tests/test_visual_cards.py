@@ -1,14 +1,28 @@
 """Tests for Lore Visual Engine (Diff Truncator, Themes, Layout Engine, Card Generator)."""
 
 from pathlib import Path
+import struct
 from types import SimpleNamespace
 import sys
+import zlib
 import pytest
 
 from lore.visual.ast_diff_truncator import truncate_diff_for_card
-from lore.visual.card_generator import PNG_SIGNATURE, generate_diff_card
+from lore.visual.card_generator import PNG_SIGNATURE, _is_png_bytes, generate_diff_card
 from lore.visual.layout_engine import CardLayout, render_diff_svg
 from lore.visual.themes import THEMES, get_theme, verify_theme_contrast
+
+def png_chunk(chunk_type: bytes, data: bytes) -> bytes:
+    checksum = zlib.crc32(chunk_type + data) & 0xFFFFFFFF
+    return struct.pack(">I", len(data)) + chunk_type + data + struct.pack(">I", checksum)
+
+
+PNG_HEADER = (
+    PNG_SIGNATURE
+    + png_chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+    + png_chunk(b"IDAT", zlib.compress(b"\x00\x00\x00\x00"))
+    + png_chunk(b"IEND", b"")
+)
 
 
 SAMPLE_DIFF = """
@@ -107,7 +121,7 @@ def test_card_generator_png_output_is_actually_png(tmp_path, monkeypatch):
     monkeypatch.setitem(
         sys.modules,
         "resvg_py",
-        SimpleNamespace(svg_to_bytes=lambda _: PNG_SIGNATURE + b"rendered"),
+        SimpleNamespace(svg_to_bytes=lambda _: PNG_HEADER),
     )
 
     out_target = tmp_path / "card.png"
@@ -119,8 +133,17 @@ def test_card_generator_png_output_is_actually_png(tmp_path, monkeypatch):
     )
 
     assert result_path == out_target
-    assert out_target.read_bytes().startswith(PNG_SIGNATURE)
+    assert out_target.read_bytes() == PNG_HEADER
     assert out_target.with_suffix(".svg").is_file()
+
+
+def test_png_validator_rejects_truncated_and_corrupt_chunks():
+    assert _is_png_bytes(PNG_HEADER)
+    assert not _is_png_bytes(PNG_HEADER[:24])
+
+    corrupt = bytearray(PNG_HEADER)
+    corrupt[-5] ^= 0xFF
+    assert not _is_png_bytes(bytes(corrupt))
 
 
 def test_png_request_explains_missing_rasterizer_and_keeps_svg(tmp_path, monkeypatch):

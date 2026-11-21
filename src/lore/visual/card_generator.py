@@ -9,8 +9,10 @@ Tiers:
 import hashlib
 from pathlib import Path
 import shutil
+import struct
 import subprocess
 import uuid
+import zlib
 from typing import Optional
 
 from lore.config import get_lore_home
@@ -19,6 +21,47 @@ from lore.visual.layout_engine import render_diff_svg
 from lore.visual.themes import get_theme
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def _is_png_bytes(content: bytes) -> bool:
+    """Check PNG framing, dimensions, data, and chunk checksums before accepting output."""
+    if not content.startswith(PNG_SIGNATURE):
+        return False
+
+    offset = len(PNG_SIGNATURE)
+    saw_ihdr = False
+    saw_idat = False
+    while offset + 12 <= len(content):
+        chunk_length = struct.unpack_from(">I", content, offset)[0]
+        chunk_start = offset + 4
+        chunk_end = chunk_start + 4 + chunk_length + 4
+        if chunk_end > len(content):
+            return False
+
+        chunk_type = content[chunk_start : chunk_start + 4]
+        chunk_data = content[chunk_start + 4 : chunk_start + 4 + chunk_length]
+        stored_crc = struct.unpack_from(">I", content, chunk_start + 4 + chunk_length)[0]
+        if zlib.crc32(chunk_type + chunk_data) & 0xFFFFFFFF != stored_crc:
+            return False
+
+        if not saw_ihdr:
+            if chunk_type != b"IHDR" or chunk_length != 13:
+                return False
+            width, height = struct.unpack_from(">II", chunk_data)
+            if width == 0 or height == 0:
+                return False
+            saw_ihdr = True
+        elif chunk_type == b"IHDR":
+            return False
+
+        if chunk_type == b"IDAT":
+            saw_idat = True
+        elif chunk_type == b"IEND":
+            return chunk_length == 0 and saw_idat and chunk_end == len(content)
+
+        offset = chunk_end
+
+    return False
 
 
 def rasterize_svg_file(svg_path: Path, output_path: Path) -> Path:
@@ -30,7 +73,7 @@ def rasterize_svg_file(svg_path: Path, output_path: Path) -> Path:
     errors = []
 
     def accept_png() -> bool:
-        return temp_path.is_file() and temp_path.read_bytes().startswith(PNG_SIGNATURE)
+        return temp_path.is_file() and _is_png_bytes(temp_path.read_bytes())
 
     try:
         freeze_bin = shutil.which("freeze")
@@ -53,8 +96,11 @@ def rasterize_svg_file(svg_path: Path, output_path: Path) -> Path:
             import resvg_py
 
             png_bytes = resvg_py.svg_to_bytes(svg_path.read_text(encoding="utf-8"))
-            if not isinstance(png_bytes, bytes) or not png_bytes.startswith(PNG_SIGNATURE):
+            if not isinstance(png_bytes, (bytes, bytearray, memoryview)):
                 raise ValueError("resvg-py did not return PNG data")
+            png_bytes = bytes(png_bytes)
+            if not _is_png_bytes(png_bytes):
+                raise ValueError("resvg-py returned an invalid PNG")
             temp_path.write_bytes(png_bytes)
             temp_path.replace(output_path)
             return output_path

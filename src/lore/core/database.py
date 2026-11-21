@@ -459,6 +459,16 @@ class Database:
                 (new_content, now, draft_id),
             )
 
+    def update_draft_card_image_path(self, draft_id: str, image_path: str) -> bool:
+        """Attach a generated image preview to a draft."""
+        now = datetime.now(timezone.utc).isoformat()
+        with self._get_connection() as conn:
+            cur = conn.execute(
+                "UPDATE drafts SET card_image_path = ?, updated_at = ? WHERE id = ?",
+                (image_path, now, draft_id),
+            )
+            return cur.rowcount == 1
+
     def update_draft_status(
         self,
         draft_id: str,
