@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <title>Lore — Evidence Strata Logo Prototype</title>
+  <desc>An architectural letter L formed by a commit ledger spine with verification hash notches and stepped diff strata bars.</desc>
+  <!-- Background Chassis -->
+  <rect width="64" height="64" rx="14" fill="#0B0F14" stroke="#21262D" stroke-width="1.5"/>
+
+  <!-- Evidence Spine: Audit Bracket & Commit Ledger -->
+  <!-- Main bracket pillar forming the vertical stem of the L -->
+  <path d="M 30 14 H 16 V 50 H 26 V 20 H 30 Z" fill="#E6EDF3"/>
+
+  <!-- Commit Hash Registration Notches on Spine -->
+  <rect x="18" y="24" width="5" height="2" rx="1" fill="#0B0F14"/>
+  <rect x="18" y="30" width="5" height="2" rx="1" fill="#0B0F14"/>
+  <rect x="18" y="36" width="5" height="2" rx="1" fill="#0B0F14"/>
+
+  <!-- Diff Strata: Net Insertions Bar (+) in Git Emerald -->
+  <g id="diff-insertions">
+    <rect x="29" y="36" width="21" height="6" rx="2" fill="#3FB950"/>
+    <!-- Inline mini '+' indicator cutout -->
+    <path d="M 46 39 H 48 M 47 38 V 40" stroke="#0B0F14" stroke-width="1.2" stroke-linecap="round"/>
+  </g>
+
+  <!-- Diff Strata: Deletions/Refactor Bar (-) in Git Diff Coral -->
+  <g id="diff-deletions">
+    <rect x="29" y="44" width="13" height="6" rx="2" fill="#F85149"/>
+    <!-- Inline mini '-' indicator cutout -->
+    <line x1="38" y1="47" x2="40" y2="47" stroke="#0B0F14" stroke-width="1.2" stroke-linecap="round"/>
+  </g>
+</svg>

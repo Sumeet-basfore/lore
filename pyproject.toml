@@ -44,7 +44,7 @@ lore = "lore.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-lore = ["generation/prompts/*.j2"]
+lore = ["generation/prompts/*.j2", "approval/*.svg"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

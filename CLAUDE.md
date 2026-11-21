@@ -97,3 +97,8 @@ pytest tests/test_scanner.py -v
 * **Keep Dependencies Lean:** No heavy web servers or bulky UI libraries. Click, Rich, Pydantic, Jinja2, PyYAML, and HTTPX are the primary core tools.
 * **Maintain Test Coverage:** Every new module must have a corresponding test file in `tests/`.
 * **Git Commits:** Make descriptive local commits after completing each meaningful slice.
+
+## Design System
+Read DESIGN.md before visual or UI work: it defines the fonts, colors, spacing, logo use, and voice. Ask the user before departing from it. When reviewing or QA-ing UI, flag code that doesn't match DESIGN.md.
+
+For public product copy and screenshots, use current beta behavior in README.md, BETA.md, and CONTEXT.md §2. Treat architecture notes in this file as historical where they conflict. Do not claim source diffs are scanned, secrets are fully detected, each draft sentence is verified, content is guaranteed accurate, or Lore publishes posts.

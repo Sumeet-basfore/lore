@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <title>Lore — Git Lineage Logo Prototype</title>
+  <desc>Monogram L formed by a Git commit graph with main branch trunk, feature branch arc, and verified evidence commit nodes.</desc>
+  <!-- Background Chassis -->
+  <rect width="64" height="64" rx="14" fill="#0D1117" stroke="#30363D" stroke-width="1.5"/>
+
+  <!-- Git Graph Tracks -->
+  <!-- Main Trunk Line forming the L spine -->
+  <path d="M 20 15 V 42 A 6 6 0 0 0 26 48 H 48" stroke="#8B949E" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Feature Branch Arc splitting from middle commit and merging into evidence baseline -->
+  <path d="M 20 32 C 28 32 30 48 36 48" stroke="#58A6FF" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Commit Nodes -->
+  <!-- Node 1: Root commit -->
+  <circle cx="20" cy="17" r="4.5" fill="#F0F6FC" stroke="#0D1117" stroke-width="2"/>
+
+  <!-- Node 2: Branching/Decision commit -->
+  <circle cx="20" cy="32" r="4.5" fill="#F0F6FC" stroke="#0D1117" stroke-width="2"/>
+
+  <!-- Node 3: Atom/Merge node on feature rail -->
+  <circle cx="36" cy="48" r="4" fill="#58A6FF" stroke="#0D1117" stroke-width="2"/>
+
+  <!-- Node 4: Verified HEAD / Evidence commit -->
+  <circle cx="48" cy="48" r="5.5" fill="#3FB950" stroke="#0D1117" stroke-width="2"/>
+  <circle cx="48" cy="48" r="2" fill="#FFFFFF"/>
+</svg>
