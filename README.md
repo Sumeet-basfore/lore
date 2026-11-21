@@ -1,5 +1,7 @@
 # Lore
 
+<p><img src="src/lore/approval/logo.svg" alt="Lore logo: evidence spine and diff strata" width="64"></p>
+
 Lore is a local-first CLI for turning recent Git history into engineering content drafts. It starts from commit metadata and evidence summaries, then lets you inspect, edit, and export a draft.
 
 <p>

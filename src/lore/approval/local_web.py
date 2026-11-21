@@ -77,6 +77,12 @@ DASHBOARD_HTML = """<!DOCTYPE html>
       align-items: center;
       gap: 10px;
     }
+    .logo-mark {
+      width: 30px;
+      height: 30px;
+      display: block;
+      flex: 0 0 auto;
+    }
     .logo-badge {
       background: var(--border);
       color: var(--accent);
@@ -325,6 +331,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 <body>
   <header>
     <div class="logo">
+      <img id="logo-mark" class="logo-mark" alt="" aria-hidden="true" />
       <span>LORE REVIEW GATEWAY</span>
       <span class="logo-badge">v2.0</span>
     </div>
@@ -404,6 +411,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token') || '';
+    document.getElementById('logo-mark').src = `/logo.svg?token=${encodeURIComponent(token)}`;
 
     let drafts = [];
     let activeIndex = 0;
@@ -635,6 +643,24 @@ class LoreReviewRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Referrer-Policy", "no-referrer")
             self.end_headers()
             self.wfile.write(b'{"error": "Forbidden: invalid or missing session token"}')
+            return
+
+        if path == "/logo.svg":
+            logo_path = Path(__file__).with_name("logo.svg")
+            try:
+                logo_data = logo_path.read_bytes()
+            except OSError:
+                self.send_error(404)
+                return
+
+            self.send_response(200)
+            self.send_header("Content-Type", "image/svg+xml")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Security-Policy", "default-src 'none'")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(logo_data)
             return
 
         if path in ("/", "/index.html"):
