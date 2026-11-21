@@ -1,6 +1,6 @@
 # Current-Project Terminal Workflow Plan
 
-**Status:** Approved for implementation; command scoping is implemented and install documentation is in progress.
+**Status:** Implemented on the feature branch; ready for review.
 **Branch:** `feat/cwd-aware-terminal-workflow`
 **Date:** 2026-11-21
 
@@ -23,7 +23,7 @@ Keep Lore local-first, preserve explicit project selection for multi-repository 
 
 ## Proposed user experience
 
-Install Lore once for the user account, run global onboarding once, then use it from each repository. Keep the existing clone-and-virtual-environment route for contributors and validate `pipx` installing the GitHub source before documenting it as the recommended beta-user path.
+Install Lore once for the user account with the validated pipx GitHub-source route, run global onboarding once, then use it from each repository. Keep the existing clone-and-virtual-environment route for contributors.
 
 ```text
 # One-time user setup
@@ -61,11 +61,11 @@ Use `git -C <cwd> rev-parse --show-toplevel` through an argument list to discove
 
 | Route | What the user installs | Fit for the target workflow | Tradeoff |
 |---|---|---|---|
-| **Recommended to validate: pipx from GitHub** | One isolated user-level Lore install from the repository | Puts `lore` on the user's PATH so it works from other repositories | Depends on supported Git/VCS installation and a clear upgrade command; validate on macOS/Linux and Windows before recommending it |
+| **pipx from GitHub** | One isolated user-level Lore install from the repository | Puts `lore` on the user's PATH so it works from other repositories | Refresh source installs with `pipx install --force` using the same Git URL; PATH setup is a separate one-time step |
 | Existing clone + virtual environment | A checkout-local install | Works today and remains useful for contributors | The command is only available when the environment is active or its executable path is used |
 | PyPI release | A published package install | Simplest install and upgrade experience | Publication is a separate release decision and is outside this implementation plan |
 
-Keep the supported source-install route until the global installer passes clean-install and upgrade checks. Pin the beta install to an explicit branch or release tag after choosing the release policy; do not silently track an unstable ref in user instructions.
+The pipx VCS install and force-refresh commands passed in an isolated Linux test environment using a local Git source. README and beta instructions use the public `main` branch so beta users receive merged updates; the command must be repeated with `--force` to refresh a source install. The checkout virtual-environment route remains available for contributors. Windows and macOS were not exercised in this environment.
 
 ### Command scope
 
@@ -96,7 +96,7 @@ Keep the supported source-install route until the global installer passes clean-
 - Add a confirmation step when an interactive user invokes a project-scoped command in an unregistered repository. Reuse `lore project add .` and `ProjectWalker` rather than inventing a second registration path.
 - In non-interactive use, fail with a copyable setup command and make no registry changes.
 - Add concise no-argument help showing current repository context and next steps.
-- Validate and document a user-level installer for beta users, with `pipx` installing the GitHub source as the proposed default. Keep the repository virtual-environment install for contributors. PyPI publication is separate and requires separate release approval.
+- Document the validated user-level pipx install from GitHub, while keeping the repository virtual-environment install for contributors. PyPI publication is separate and requires separate release approval.
 - Document macOS/Linux and PowerShell command availability, including how to upgrade the global install.
 
 ### 4. End-to-end verification and release notes
@@ -109,8 +109,8 @@ Keep the supported source-install route until the global installer passes clean-
 ## Implementation progress
 
 - Slice 1 is committed as `a0cd570`: Git-root discovery and normalized project-path lookup, with nested-directory and worktree coverage.
-- Slice 2 is implemented and verified: current-repository defaults, first-use confirmation, multi-project generation guard, terminal review/export filters, and the compact Rich terminal presentation. The full suite passes (107 tests); the slice commit is being prepared.
-- Slice 3 installation guidance and isolated pipx VCS-install verification are in progress.
+- Slice 2 is committed as `177b7b1`: current-repository defaults, first-use confirmation, multi-project generation guard, terminal review/export filters, and the compact Rich terminal presentation. The full suite passes (107 tests).
+- Slice 3 is complete: README and beta guide cover pipx VCS installation and force-refresh. An isolated pipx installation from Git source exposed `lore` outside the Lore checkout and completed project add, scan, and atoms commands. `pipx install --force` refreshed the source install. Windows and macOS were not exercised here.
 
 ## Acceptance criteria
 
@@ -128,7 +128,7 @@ Keep the supported source-install route until the global installer passes clean-
 ## Risks and decisions for review
 
 - **Global install availability:** the package is not on PyPI. The plan adds beta installation guidance from the repository; publishing remains a separate release decision.
-- **Installer support:** confirm `pipx` can install and upgrade from the GitHub source on supported macOS/Linux and Windows setups before making it the recommended route. Keep a tested source-install fallback in the docs.
+- **Installer support:** pipx VCS install and force-refresh passed on Linux. Confirm the same commands on macOS and Windows during beta testing; the source virtual-environment install remains documented as a fallback.
 - **Legacy no-project behavior:** `scan` currently scans all projects when no project is supplied. This plan changes that default only when run inside a repository; outside a repository it keeps the current behavior, while ambiguous generation must ask for an explicit project.
 - **Registration prompt:** only interactive sessions can prompt. Automation must use the explicit `lore project add .` setup first.
 - **Dashboard scope:** the web review dashboard remains global in this slice, while terminal review uses the current project. Keep that distinction clear in help text.
