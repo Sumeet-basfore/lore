@@ -231,6 +231,26 @@ class Database:
                 return None
             return self._row_to_project(row)
 
+    def get_project_by_path(self, path: Path | str) -> Optional[Project]:
+        """Find a project by its canonical filesystem path."""
+        normalized_path = str(Path(path).expanduser().resolve())
+        with self._get_connection() as conn:
+            cur = conn.execute("SELECT * FROM projects WHERE path = ?", (normalized_path,))
+            row = cur.fetchone()
+            if row:
+                return self._row_to_project(row)
+
+            # Older databases may contain paths written before path resolution was applied.
+            cur = conn.execute("SELECT * FROM projects")
+            for candidate in cur.fetchall():
+                try:
+                    candidate_path = str(Path(candidate["path"]).expanduser().resolve())
+                except (OSError, RuntimeError):
+                    continue
+                if candidate_path == normalized_path:
+                    return self._row_to_project(candidate)
+        return None
+
     def list_projects(self) -> List[Project]:
         with self._get_connection() as conn:
             cur = conn.execute("SELECT * FROM projects ORDER BY name ASC")

@@ -1,7 +1,7 @@
 # Current-Project Terminal Workflow Plan
 
-**Status:** Proposed for review; implementation has not started.
-**Branch:** `plan/cwd-aware-terminal-workflow`
+**Status:** Approved for implementation; work is in progress.
+**Branch:** `feat/cwd-aware-terminal-workflow`
 **Date:** 2026-11-21
 
 ## Goal
