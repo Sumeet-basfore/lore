@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+  <title>Lore — Editorial Chisel Logo Prototype</title>
+  <desc>A chiseled architectural slab-serif letter L paired with an editorial margin rule and a terminal prompt symbol in warm amber.</desc>
+  <!-- Background Chassis -->
+  <rect width="64" height="64" rx="14" fill="#0A0D12" stroke="#262C36" stroke-width="1.5"/>
+
+  <!-- Editorial Manuscript Margin Line -->
+  <line x1="11" y1="14" x2="11" y2="50" stroke="#21262D" stroke-width="1" stroke-dasharray="2 2"/>
+
+  <!-- Chiseled Slab-Serif 'L' Body -->
+  <!-- Path tracing top serif, stem, base slab, and terminal bracket -->
+  <path d="M 15 14 H 31 V 19 H 27 V 44 H 46 V 39 H 50 V 50 H 15 V 44 H 19 V 19 H 15 Z" fill="#F0EFEA"/>
+
+  <!-- CLI Terminal Prompt and Cursor in inner quadrant -->
+  <!-- Prompt caret '>' -->
+  <path d="M 33 24 L 41 31 L 33 38" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Monospace Cursor '_' -->
+  <line x1="36" y1="42" x2="44" y2="42" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

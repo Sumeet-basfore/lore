@@ -218,5 +218,6 @@ Older competitor notes, market estimates, example quotes, and repository case st
 * **Current status:** Local `main` is synchronized with `origin/main`. The source install route and tester guidance are ready for a small invited beta. No package, GitHub release/tag, or public announcement has been created.
 * **Next step:** Invite a small group of testers, gather feedback through GitHub issues, and use that feedback to decide whether a public release is warranted.
 * **README polish (`docs/readme-polish`):** Added quick navigation, linked the beta guide, separated macOS/Linux and Windows installation steps, organized the first run into scan, draft/review, and export stages, documented the PowerShell editor setting, and made Windows setup work with newer Python 3 versions without requiring environment activation.
+* **Logo prototypes (`design/logo-prototypes`):** Added three restrained, self-contained SVG logo prototypes under `assets/logo-prototypes/` exploring Git commit lineage, editorial proofreading craft, and diff evidence strata.
 
 
