@@ -38,30 +38,49 @@ py -3 -m venv .venv
 .\.venv\Scripts\lore.exe --help
 ```
 
-These commands use the Python 3 version selected by the launcher and avoid environment activation, which PowerShell's execution policy can block. In the quickstart below, replace `lore` with `.\.venv\Scripts\lore.exe` when running commands in PowerShell.
+These commands use the Python 3 version selected by the launcher and avoid environment activation, which PowerShell execution policy can block. The quickstart assumes `lore` is on your PATH; activate the source virtual environment before changing into the target repository, or use the user-level pipx install below.
+
+### Install a user-level `lore` command (beta)
+
+To use `lore` from any repository, install the GitHub source with [pipx](https://pipx.pypa.io/). Lore is not published to PyPI yet. Install pipx and Git first, then run:
+
+```bash
+pipx install "git+https://github.com/Sumeet-basfore/lore.git@main"
+pipx ensurepath
+```
+
+Open a new terminal if `lore` is not on your `PATH`. PowerShell uses the same commands. To refresh the beta install after a source update, run:
+
+```bash
+pipx install --force "git+https://github.com/Sumeet-basfore/lore.git@main"
+```
+
+The checkout-and-virtual-environment instructions above remain useful for contributors. Activate that environment before changing into another project directory.
 
 ## Quickstart
 
-### 1. Register and scan a repository
+### 1. Scan the repository you are in
 
 ```bash
 lore init
-lore project add /path/to/repository --name my-project
-lore scan --project my-project --since "14 days ago"
-lore atoms --project my-project
+cd /path/to/repository
+lore scan --since "14 days ago"
+lore atoms
 ```
+
+On first use in an unregistered Git repository, Lore asks before adding it. For non-interactive use, run `lore project add . --name my-project` from the repository root. An explicit `--project` still overrides the current repository, and `lore scan --all` scans every registered project.
 
 ### 2. Generate and review a draft
 
 ```bash
-lore generate --project my-project --platform linkedin
+lore generate --platform linkedin
 # Replace <draft-id> with the ID printed by `lore generate`.
 lore draft show <draft-id>
 lore draft edit <draft-id>
 lore draft approve <draft-id>
 ```
 
-You can also review pending drafts in the terminal with `lore review`, or open the local dashboard with `lore review --web`. The dashboard binds to loopback on `127.0.0.1`.
+You can also list drafts with `lore drafts`, review pending drafts in the terminal with `lore review`, or open the local dashboard with `lore review --web`. The dashboard binds to loopback on `127.0.0.1`. With no subcommand, `lore` shows the current repository and suggested next commands.
 
 On Windows PowerShell, if `EDITOR` is not set, configure the built-in Notepad editor before using `lore draft edit`:
 

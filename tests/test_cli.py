@@ -114,7 +114,7 @@ def test_cli_full_scan_generate_export_flow(cli_runner, tmp_path):
     draft_id = lines[0].split("Draft ID:")[1].strip()
 
     # 5. List Drafts
-    res_drafts = cli_runner.invoke(main, ["drafts"])
+    res_drafts = cli_runner.invoke(main, ["drafts", "--project", "CoreApp"])
     assert res_drafts.exit_code == 0
     assert draft_id[:8] in res_drafts.output
 
@@ -129,13 +129,16 @@ def test_cli_full_scan_generate_export_flow(cli_runner, tmp_path):
     assert "APPROVED" in res_app.output
 
     # 8. Calendar
-    res_cal = cli_runner.invoke(main, ["calendar"])
+    res_cal = cli_runner.invoke(main, ["calendar", "--project", "CoreApp"])
     assert res_cal.exit_code == 0
     assert "Suggested Content Calendar" in res_cal.output
 
     # 9. Export
     export_dir = tmp_path / "exports"
-    res_exp = cli_runner.invoke(main, ["export", "--status", "approved", "--output-dir", str(export_dir)])
+    res_exp = cli_runner.invoke(
+        main,
+        ["export", "--project", "CoreApp", "--status", "approved", "--output-dir", str(export_dir)],
+    )
     assert res_exp.exit_code == 0
     assert "Exported 1 draft(s)" in res_exp.output
     exported_files = list(export_dir.glob("*.md"))

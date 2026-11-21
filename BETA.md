@@ -16,6 +16,15 @@ python -m pip install .
 
 On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1`.
 
+To use `lore` from any repository across terminal sessions, install the GitHub source with pipx instead:
+
+```bash
+pipx install "git+https://github.com/Sumeet-basfore/lore.git@main"
+pipx ensurepath
+```
+
+Open a new terminal if `lore` is not on `PATH`. PowerShell uses the same commands. Refresh the beta install after updates with `pipx install --force "git+https://github.com/Sumeet-basfore/lore.git@main"`. The package is not published to PyPI.
+
 To keep beta data separate from an existing Lore setup, set `LORE_HOME` to a new directory before running Lore. For example, on macOS or Linux:
 
 ```bash
@@ -29,12 +38,14 @@ Start onboarding with `lore init`. The default provider is Ollama at `http://loc
 Choose a repository whose commit metadata and project name you are allowed to process with your configured model endpoint.
 
 ```bash
-lore project add /path/to/repository --name my-project
-lore scan --project my-project --since "14 days ago"
-lore atoms --project my-project
-lore generate --project my-project --platform linkedin
+cd /path/to/repository
+lore scan --since "14 days ago"
+lore atoms
+lore generate --platform linkedin
 lore review
 ```
+
+For the first interactive run in a repository, Lore asks before registering it. For automation, register explicitly from the repository root with `lore project add . --name my-project`. Pass `--project` to target another registered repository.
 
 The review screen lets you inspect drafts and approve, reject, or edit them. You can also inspect a specific draft with `lore draft show <draft-id>`, edit it with `lore draft edit <draft-id>`, and approve it with `lore draft approve <draft-id>`. Export approved drafts with:
 
