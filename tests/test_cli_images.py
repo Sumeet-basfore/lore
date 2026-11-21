@@ -182,3 +182,16 @@ def test_draft_show_displays_attached_image_path(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
     assert shown.exit_code == 0, shown.output
     assert "Image preview:" in shown.output
+
+
+def test_card_command_defaults_to_svg_without_rasterizer(tmp_path, monkeypatch):
+    monkeypatch.setenv("LORE_HOME", str(tmp_path / "lore-home"))
+    runner = CliRunner()
+    diff_path = tmp_path / "sample.diff"
+    diff_path.write_text("@@ -1,1 +1,2 @@\n-old\n+new\n", encoding="utf-8")
+
+    result = runner.invoke(main, ["card", "--diff", str(diff_path)])
+
+    assert result.exit_code == 0, result.output
+    assert ".svg" in result.output
+    assert list((tmp_path / "lore-home" / "cards").glob("*.svg"))

@@ -90,7 +90,7 @@ class LoreMCPServer:
             },
             {
                 "name": "lore_render_card",
-                "description": "Renders a syntax-highlighted code diff card (SVG/PNG) for visual social sharing.",
+                "description": "Renders a syntax-highlighted code diff card as SVG by default, or PNG when requested.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -105,6 +105,12 @@ class LoreMCPServer:
                             "type": "string",
                             "enum": ["16:9", "1:1"],
                             "default": "16:9",
+                        },
+                        "format": {
+                            "type": "string",
+                            "enum": ["svg", "png"],
+                            "default": "svg",
+                            "description": "SVG is the default and editable; PNG requires an available local rasterizer.",
                         },
                     },
                     "required": ["diff_text"],
@@ -208,12 +214,14 @@ class LoreMCPServer:
             file_label = arguments.get("file_label")
             theme = arguments.get("theme", "tokyo_night")
             ratio = arguments.get("aspect_ratio", "16:9")
+            output_format = arguments.get("format", "svg")
 
             path = generate_diff_card(
                 diff_text=diff_text,
                 theme_name=theme,
                 aspect_ratio=ratio,
                 file_label=file_label,
+                output_format=output_format,
             )
             return f"Rendered diff card saved to: {path}"
 

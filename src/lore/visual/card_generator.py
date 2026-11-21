@@ -138,6 +138,7 @@ def generate_diff_card(
     theme_name: str = "tokyo_night",
     aspect_ratio: str = "16:9",
     file_label: Optional[str] = None,
+    output_format: str = "png",
 ) -> Path:
     """Generates a visual diff card PNG or SVG from git diff text."""
     theme = get_theme(theme_name)
@@ -157,11 +158,14 @@ def generate_diff_card(
         file_label=file_label,
     )
 
+    if output_format not in {"svg", "png"}:
+        raise ValueError("Visual cards support only .svg and .png output paths.")
+
     if output_path is None:
         cards_dir = get_lore_home() / "cards"
         cards_dir.mkdir(parents=True, exist_ok=True)
         content_hash = hashlib.sha256(svg_content.encode("utf-8")).hexdigest()[:12]
-        dest_path = cards_dir / f"diff_{content_hash}_{aspect_ratio.replace(':', '_')}.png"
+        dest_path = cards_dir / f"diff_{content_hash}_{aspect_ratio.replace(':', '_')}.{output_format}"
     else:
         dest_path = Path(output_path)
         dest_path.parent.mkdir(parents=True, exist_ok=True)

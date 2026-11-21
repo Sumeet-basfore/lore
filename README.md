@@ -105,6 +105,7 @@ lore export --status approved --format markdown --output-dir ./exports
 - Groups related commits into content atoms and records commit SHAs, file paths, and change counts as evidence.
 - Generates drafts for Twitter/X, X threads, LinkedIn, blogs, and changelogs using the configured model.
 - Creates an editable, geometric SVG illustration from a saved draft and its linked evidence summary; optionally exports a PNG for platforms that require raster images.
+- Renders Git diff cards as SVG by default with `lore card`; an explicit `.png` output requires a local rasterizer.
 - Saves projects, atoms, drafts, and voice samples in a local SQLite database under `~/.lore/` (or `LORE_HOME`).
 - Lets you edit, approve, reject, and export drafts. Review each factual claim before using it.
 

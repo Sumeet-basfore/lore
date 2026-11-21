@@ -999,7 +999,7 @@ def cmd_image_generate(
 
 @main.command("card")
 @click.option("--diff", "-d", "diff_file", type=click.Path(exists=True), help="Read diff from file instead of git.")
-@click.option("--output", "-o", help="Output PNG/SVG destination path.")
+@click.option("--output", "-o", help="Output PNG/SVG destination path (defaults to SVG).")
 @click.option("--theme", default="tokyo_night", type=click.Choice(["tokyo_night", "catppuccin_mocha", "one_dark"]))
 @click.option("--aspect-ratio", default="16:9", type=click.Choice(["16:9", "1:1"]))
 def cmd_card(diff_file: Optional[str], output: Optional[str], theme: str, aspect_ratio: str):
@@ -1016,6 +1016,7 @@ def cmd_card(diff_file: Optional[str], output: Optional[str], theme: str, aspect
         output_path=Path(output) if output else None,
         theme_name=theme,
         aspect_ratio=aspect_ratio,
+        output_format=Path(output).suffix.lstrip(".").lower() if output else "svg",
     )
     console.print(f"[bold green]✓ Visual diff card created:[/bold green] {card_path}")
 
