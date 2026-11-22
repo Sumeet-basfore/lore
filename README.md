@@ -1,144 +1,353 @@
 # Lore
 
-<p><img src="src/lore/approval/logo.svg" alt="Lore logo: evidence spine and diff strata" width="64"></p>
+<p><img src="src/lore/approval/logo.svg" alt="Lore Evidence Strata logo" width="64"></p>
 
-Lore is a local-first CLI for turning recent Git history into engineering content drafts. It starts from commit metadata and evidence summaries, then lets you inspect, edit, and export a draft.
+**Turn recent Git history into a draft you can edit and export.**
+
+Lore is a local-first Python CLI for developers who want a starting point for sharing engineering work. It reads Git commit metadata, groups related changes into content atoms, generates platform-shaped drafts with a model you choose, and keeps review and export on your machine.
 
 <p>
   <a href="https://python.org"><img src="https://img.shields.io/badge/python-3.12+-3776AB.svg?style=flat-square&logo=python&logoColor=white" alt="Python 3.12 or newer"></a>
+  <a href="BETA.md"><img src="https://img.shields.io/badge/status-beta-7A4D00.svg?style=flat-square" alt="Beta"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="MIT License"></a>
 </p>
 
 <p align="center">
-  <img src="assets/readme/lore-review-preview.png" alt="Illustrative preview of Lore's local review dashboard with sample draft data" width="100%">
+  <img src="assets/readme/lore-review-preview.png" alt="Illustrative preview of Lore’s local review dashboard with sample draft data" width="100%">
 </p>
-<p align="center"><em>Illustrative dashboard preview. The draft and record values shown are sample data.</em></p>
+<p align="center"><em>Illustrative dashboard preview. Draft text and record values shown here are sample data.</em></p>
 
-**Beta:** Install Lore from source; the package is not published to PyPI. See the [beta tester guide](BETA.md) for the workflow and privacy details.
+> **Beta:** Lore is installed from its GitHub source; the package is not published to PyPI. Read the [beta guide](BETA.md) before trying it with a repository.
 
-[Quickstart](#quickstart) · [Capabilities](#what-the-current-cli-does) · [Privacy](#privacy-and-data-handling) · [Feedback](#feedback)
+[Quickstart](#quickstart) · [Commands](#command-reference) · [Architecture](#architecture) · [Privacy](#privacy-and-data-handling) · [Development](#development)
 
-## Install
+## Contents
 
-Requirements: Python 3.12 or newer and Git.
+- [What Lore does](#what-lore-does)
+- [Tech stack](#tech-stack)
+- [Quickstart](#quickstart)
+- [Command reference](#command-reference)
+- [Configuration](#configuration)
+- [Architecture](#architecture)
+- [Privacy and data handling](#privacy-and-data-handling)
+- [Limits and beta status](#limits-and-beta-status)
+- [Development](#development)
+- [Feedback](#feedback)
+- [License](#license)
 
-### macOS and Linux
+## What Lore does
 
-```bash
-git clone https://github.com/Sumeet-basfore/lore.git
-cd lore
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install .
-lore --help
+Lore turns recent repository activity into editable drafts for engineering updates. It supports short posts, threads, LinkedIn posts, blog drafts, and changelogs. You inspect the draft and its Git evidence, then decide whether to edit, approve, reject, or export it.
+
+| Step | What Lore does |
+| --- | --- |
+| Scan | Reads commit metadata for a selected time range: subjects, dates, authors, changed paths, and insertion/deletion counts. |
+| Group | Groups related commits into content atoms and records the commit SHAs and metadata used as evidence. |
+| Draft | Sends a platform prompt to your configured model and saves the returned text as a draft. |
+| Review | Lets you inspect and edit drafts in the terminal or the local web dashboard. |
+| Export | Writes selected drafts to local Markdown or JSON files. |
+
+The scan-to-draft path does not read source files or patch contents. The evidence points back to Git records; it does not confirm every sentence in a generated draft.
+
+Optional image generation creates an editable SVG illustration from a saved draft and its evidence summary. PNG output is available when a local rasterizer is installed. Lore does not publish the draft or image from the CLI.
+
+### Data flow
+
+```mermaid
+flowchart LR
+    Repo["Git repository"] --> Scan["Commit metadata scan"]
+    Scan --> Atoms["Content atoms + evidence"]
+    Atoms --> Prompt["Platform prompt"]
+    Prompt --> Model["Ollama or selected provider"]
+    Model --> Draft["Editable draft"]
+    Draft --> Review["Human review"]
+    Review --> Export["Local Markdown / JSON"]
 ```
 
-### Windows PowerShell
+## Tech stack
 
-```powershell
-git clone https://github.com/Sumeet-basfore/lore.git
-cd lore
-py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install .
-.\.venv\Scripts\lore.exe --help
-```
+| Area | Technology |
+| --- | --- |
+| Runtime | Python 3.12 or newer |
+| CLI and terminal UI | Click and Rich |
+| Data models and storage | Pydantic and SQLite |
+| Prompts and provider requests | Jinja2 and httpx |
+| Configuration | YAML |
+| Local review dashboard | Python standard-library HTTP server |
 
-These commands use the Python 3 version selected by the launcher and avoid environment activation, which PowerShell execution policy can block. The quickstart assumes `lore` is on your PATH; activate the source virtual environment before changing into the target repository, or use the user-level pipx install below.
+## Quickstart
 
-### Install a user-level `lore` command (beta)
+### Requirements
 
-To use `lore` from any repository, install the GitHub source with [pipx](https://pipx.pypa.io/). Lore is not published to PyPI yet. Install pipx and Git first, then run:
+- Python 3.12 or newer
+- Git
+- Ollama running locally, or credentials for a supported remote model provider
+
+### Install Lore for use across repositories
+
+Install [pipx](https://pipx.pypa.io/) first, then install Lore from the GitHub repository:
 
 ```bash
 pipx install "git+https://github.com/Sumeet-basfore/lore.git@main"
 pipx ensurepath
 ```
 
-Open a new terminal if `lore` is not on your `PATH`. PowerShell uses the same commands. To refresh the beta install after a source update, run:
+Open a new terminal if `lore` is not on your `PATH`. These commands work in macOS, Linux, and PowerShell. To refresh this source install after an update:
 
 ```bash
 pipx install --force "git+https://github.com/Sumeet-basfore/lore.git@main"
 ```
 
-The checkout-and-virtual-environment instructions above remain useful for contributors. Activate that environment before changing into another project directory.
-
-## Quickstart
-
-### 1. Scan the repository you are in
+Check the CLI and configure your model once:
 
 ```bash
+lore --help
 lore init
-cd /path/to/repository
+```
+
+The default provider is Ollama at `http://localhost:11434`. `lore init` asks for your provider, model, name, and social handle. For remote providers, configure the appropriate API key in your shell environment; see [Configuration](#configuration).
+
+### Scan and draft from another project
+
+Change to the Git repository you want to use. On first use, Lore asks before registering an unregistered repository. If you need a non-interactive setup, register it explicitly from its root:
+
+```bash
+cd /path/to/your/repository
+lore project add . --name my-project
+```
+
+Then scan, generate, and review:
+
+```bash
 lore scan --since "14 days ago"
 lore atoms
+lore generate --platform linkedin
+lore draft show <draft-id>
+lore review
 ```
 
-On first use in an unregistered Git repository, Lore asks before adding it. For non-interactive use, run `lore project add . --name my-project` from the repository root. An explicit `--project` still overrides the current repository, and `lore scan --all` scans every registered project.
+`lore generate` prints the draft ID. Replace `<draft-id>` with that value. You can pass `--atom <atom-id>` to draft from a specific atom. The default platform is `twitter`.
 
-### 2. Generate and review a draft
+The terminal review screen supports approve, reject, edit, previous/next, and quit actions. To open the local web dashboard instead:
 
 ```bash
-lore generate --platform linkedin
-# Replace <draft-id> with the ID printed by `lore generate`.
-lore draft show <draft-id>
-lore image generate <draft-id>
-lore draft edit <draft-id>
-lore draft approve <draft-id>
+lore review --web
 ```
 
-Image generation saves an editable SVG under `lore-media/` in the project and attaches it to the draft for preview in `lore review --web`. Add `--format png` when you need a raster image for a social platform; PNG conversion uses an optional local renderer and keeps the SVG source alongside it. Use `--force` to replace an existing image.
-
-You can also list drafts with `lore drafts`, review pending drafts in the terminal with `lore review`, or open the local dashboard with `lore review --web`. The dashboard binds to loopback on `127.0.0.1`. With no subcommand, `lore` shows the current repository and suggested next commands.
-
-On Windows PowerShell, if `EDITOR` is not set, configure the built-in Notepad editor before using `lore draft edit`:
-
-```powershell
-$env:EDITOR = "notepad"
-```
-
-### 3. Export the approved draft
+After approving a draft, export it locally:
 
 ```bash
 lore export --status approved --format markdown --output-dir ./exports
 ```
 
-`lore init` defaults to Ollama at `http://localhost:11434`; start Ollama and install the selected model before generating. Lore also supports OpenAI, Anthropic, OpenRouter, and Gemini. When you select a remote provider, it receives the generation prompt described in [Privacy and data handling](#privacy-and-data-handling).
+### Generate an illustration
 
-## What the current CLI does
+Generate an editable SVG for a saved draft:
 
-- Reads Git commit metadata for the selected time range: commit subjects, dates, changed file paths, and insertion/deletion counts.
-- Groups related commits into content atoms and records commit SHAs, file paths, and change counts as evidence.
-- Generates drafts for Twitter/X, X threads, LinkedIn, blogs, and changelogs using the configured model.
-- Creates an editable, geometric SVG illustration from a saved draft and its linked evidence summary; optionally exports a PNG for platforms that require raster images.
-- Renders Git diff cards as SVG by default with `lore card`; an explicit `.png` output requires a local rasterizer.
-- Saves projects, atoms, drafts, and voice samples in a local SQLite database under `~/.lore/` (or `LORE_HOME`).
-- Lets you edit, approve, reject, and export drafts. Review each factual claim before using it.
+```bash
+lore image generate <draft-id>
+```
 
-The CLI scan-to-draft workflow does not read source files or patch contents. A separate DLP scanner exists in the repository, but it is not connected to this workflow. The scan filters some known secret-like file names; that is not a complete secret detection system.
+Lore writes the SVG to the project’s `lore-media/` directory by default and links it to the draft for local preview. To also create a PNG:
+
+```bash
+lore image generate <draft-id> --format png
+```
+
+PNG conversion needs a local renderer. The SVG source is retained. Use `--force` if you want Lore to replace an existing image file.
+
+## Command reference
+
+Use `lore --help` or `lore <command> --help` for current options.
+
+| Command | Purpose |
+| --- | --- |
+| `lore` | Show the current repository context and suggested next commands. |
+| `lore init` | Configure the default provider, model, author name, and handle. |
+| `lore project add <path> --name <name>` | Register a repository. `--description` is optional. |
+| `lore project list` / `lore project remove <name>` | List or remove a registered project. |
+| `lore scan --since <range>` | Scan Git history; defaults to the last 14 days. Use `--project <name>` or `--all` to select scope. |
+| `lore atoms` | List extracted content atoms. Supports `--project` and `--status` filters. |
+| `lore generate --platform <format>` | Generate a draft. Formats: `twitter`, `thread`, `linkedin`, `blog`, `changelog`. |
+| `lore drafts` | List drafts. Supports project, platform, and status filters. |
+| `lore draft show <id>` | Inspect a draft and its evidence. |
+| `lore draft edit <id>` | Edit draft content with the configured terminal editor. |
+| `lore draft approve <id>` / `lore draft reject <id>` | Change the review status of one draft. |
+| `lore review` | Review pending drafts in the terminal. |
+| `lore review --web [--port 4748]` | Open the dashboard on loopback. The dashboard uses a fallback port if the requested port is busy. |
+| `lore export` | Export drafts to Markdown or JSON. By default it exports approved drafts to `./exports`. |
+| `lore image generate <id>` | Generate an editable SVG illustration; optionally also render a PNG. |
+| `lore card` | Create a local SVG or PNG card from a Git diff or a supplied diff file. |
+| `lore voice add <file>` / `lore voice list` | Store writing samples locally and manage them. |
+| `lore calendar` | Show suggested content slots based on scanned atoms; it does not schedule posts. |
+| `lore config list` / `lore config set <key> <value>` | View or update local configuration. |
+| `lore mcp` | Start Lore’s stdio MCP server for a compatible client. |
+
+`lore card` is a separate local rendering command. Without `--diff`, it renders the diff from `HEAD~1` to `HEAD`; with `--diff`, it reads the supplied file. That input is outside the scan-to-draft flow described above.
+
+## Configuration
+
+### Local files
+
+By default, Lore stores its configuration and database under `~/.lore/`:
+
+| Path | Contents |
+| --- | --- |
+| `~/.lore/config.yml` | Provider, model, author details, and other CLI settings. |
+| `~/.lore/lore.db` | Registered projects, atoms, drafts, and voice samples. |
+
+Set `LORE_HOME` before running Lore to use a different data directory. For example, to keep beta data separate on macOS or Linux:
+
+```bash
+export LORE_HOME="$HOME/.lore-beta"
+```
+
+On PowerShell:
+
+```powershell
+$env:LORE_HOME = "$HOME\.lore-beta"
+```
+
+Use `lore init` for first-time setup. `lore config list` displays the current settings with sensitive values redacted. A key saved in `config.yml` is stored without encryption; environment variables are preferable for API keys. Do not pass real keys as command-line values, where shell history may retain them.
+
+### Providers and environment variables
+
+Ollama at `http://localhost:11434` is the default. Lore also supports OpenAI, Anthropic, OpenRouter, Gemini, and a separately configured Ollama endpoint.
+
+| Variable | Used by |
+| --- | --- |
+| `OPENAI_API_KEY` | OpenAI |
+| `ANTHROPIC_API_KEY` | Anthropic |
+| `OPENROUTER_API_KEY` | OpenRouter |
+| `GEMINI_API_KEY` or `GOOGLE_AI_API_KEY` | Gemini |
+| `EDITOR` | Terminal draft editing; defaults to `nano` if unset. |
+| `LORE_HOME` | Override the local Lore data directory. |
+| `LORE_MOCK_LLM=1` | Test mode that returns canned sample text. Do not use this output as project content. |
+
+For Windows PowerShell, set Notepad as the editor if needed:
+
+```powershell
+$env:EDITOR = "notepad"
+```
+
+When you select a remote provider or remote Ollama endpoint, Lore sends the prompts described in [Privacy and data handling](#privacy-and-data-handling) to that endpoint.
+
+## Architecture
+
+Lore is a local CLI. The core workflow runs in the calling user's checkout and stores its records in a local SQLite database.
+
+```text
+Git repository
+  └─ Git metadata scan
+       └─ Content atoms + evidence
+            └─ Prompt template + style guidance
+                 └─ Local Ollama or selected remote model
+                      └─ Local draft database
+                           └─ Human review
+                                └─ Markdown / JSON export
+```
+
+| Area | Responsibility |
+| --- | --- |
+| `src/lore/cli.py` | Click commands and terminal workflow. |
+| `src/lore/scanner/` | Git history and local project metadata inspection. |
+| `src/lore/extraction/` | Content atom grouping and evidence records. |
+| `src/lore/intelligence/` | Story-angle ranking and calendar suggestions. |
+| `src/lore/generation/` | Provider routing, platform prompt templates, and text cleanup. |
+| `src/lore/visual/` | Diff cards and draft-linked SVG illustrations. |
+| `src/lore/approval/` | Terminal review and the loopback web dashboard. |
+| `src/lore/core/` | Pydantic models, SQLite storage, and domain exceptions. |
+| `src/lore/mcp/` | Stdio Model Context Protocol server. |
+| `src/lore/publishing/` | Provider adapters exist in the source tree; publishing is not exposed as a CLI command. |
+| `tests/` | Pytest unit and integration tests. |
+
+The dashboard is a small local HTTP server that binds to `127.0.0.1`. Lore has no hosted backend or deployment configuration.
 
 ## Privacy and data handling
 
-- Scanning runs Git locally. It reads commit metadata, including author information, but the generated atoms use commit subjects, file paths, counts, dates, and SHAs.
-- Generation sends a prompt containing the project name, selected atom and commit summaries, evidence fields, technology stack, and generated style guidance. Changelog prompts also include commit subjects. Voice sample text stays in the local database; Lore derives brief style guidance from it for the prompt.
-- Image generation sends the project name, platform, draft title and a short excerpt, linked atom title/summary, and evidence counts to the configured model. It does not send source files or patch contents. A remote provider receives this prompt when selected. The SVG markup is rendered locally from a restricted set of geometric shapes.
-- With the default Ollama URL, Lore sends the prompt to the local Ollama endpoint. If you configure a remote Ollama endpoint or select OpenAI, Anthropic, OpenRouter, or Gemini, prompt data is sent to that service under its terms.
-- Lore stores project paths, atoms, drafts, voice samples, and configuration locally. The SQLite database is `~/.lore/lore.db`; configuration is `~/.lore/config.yml`. A key saved in config is stored there without encryption. Prefer provider environment variables for API keys and protect your local account and files.
-- Lore does not currently publish drafts from the CLI. The beta workflow ends with review and local export.
+Lore keeps project records and drafts on your computer, but generation sends a prompt to whichever model endpoint you have selected.
 
-Do not use Lore with a repository if its commit metadata, file names, project name, or voice-derived style guidance must not be sent to the model endpoint you selected. The DLP module is not active in the scan-to-draft path.
+| Action | Data read or sent |
+| --- | --- |
+| Register a project | Locally checks the repository path, README introduction, and selected project metadata files to infer a name and technology stack. |
+| Scan Git history | Reads commit subjects, author details, timestamps, changed paths, insertion/deletion counts, and commit SHAs. The normal scan-to-draft flow does not read patch contents. |
+| Generate text | Sends the project name, selected atom and commit summaries, evidence fields, technology stack, and style guidance to the configured model. Changelog prompts can include commit subjects. |
+| Add a voice sample | Stores the sample locally. Lore derives brief style guidance for prompts; it does not add the full sample text to the generation prompt. |
+| Generate an illustration | Sends the project name, platform, draft title and excerpt, linked atom title/summary, and evidence counts to the configured model. It does not send source files or patch contents. SVG markup is rendered locally from a restricted scene schema. |
+| Render a diff card | Reads a local Git diff or supplied diff file and renders the card locally. This is separate from scan-to-draft generation. |
 
-## Limits to keep in mind
+With the default Ollama URL, generation requests go to the local Ollama endpoint. A remote model provider or remote Ollama URL receives its prompt under that provider’s terms.
 
-Generated text and illustrations can still be misleading or inaccurate. Evidence links drafts to Git records and counts; it does not prove every sentence or that an illustration represents the change correctly. Inspect each draft and image before approving or sharing them.
+Lore stores its SQLite database and YAML configuration locally without encryption. The separate DLP scanner in the source tree is not connected to the normal scan-to-draft path and should not be treated as protection for prompts.
 
-The CLI reads commit metadata rather than source diffs. It can miss the reason behind a change when commit messages are vague, and its change counts do not establish impact or performance. Lore does not verify metrics, infer test outcomes, or guarantee that a draft sounds human.
+## Limits and beta status
 
-With normal settings, if the selected model is unavailable, generation stops with an error instead of creating a sample draft. `LORE_MOCK_LLM=1` is an explicit test mode that returns canned example text; do not use its output as project content.
+- Generated drafts and illustrations can be wrong or misleading. Evidence links records to Git metadata; it does not verify each sentence, establish impact, or prove that a change improved performance.
+- The scan-to-draft workflow reads metadata rather than source patches. Vague commit messages can leave out the reason for a change.
+- Some secret-like filenames are filtered, but this is not complete secret detection. The standalone DLP module is not active in the normal CLI flow.
+- Lore does not publish posts or images from the CLI. Review and export are the end of the supported workflow.
+- Invalid image-scene output can fall back to Lore’s built-in Evidence Strata motif, which may not be tailored to the draft.
+- The package is not published to PyPI. Install the beta from source with pipx or install the checkout directly.
+- `LORE_MOCK_LLM=1` is for testing only and returns canned content, not a draft based on your repository.
+
+Before approving or sharing an export, check its claims against the underlying work. For provider data and image prompts, review [Privacy and data handling](#privacy-and-data-handling) and the [beta guide](BETA.md).
+
+## Development
+
+### Set up a checkout
+
+Install Git and Python 3.12 or newer, then clone and install the project with its development dependencies.
+
+macOS or Linux:
+
+```bash
+git clone https://github.com/Sumeet-basfore/lore.git
+cd lore
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+```
+
+Windows PowerShell:
+
+```powershell
+git clone https://github.com/Sumeet-basfore/lore.git
+cd lore
+py -3 -m venv .venv
+& .venv\Scripts\python.exe -m pip install -e ".[dev]"
+```
+
+### Run the test suite
+
+```bash
+python -m pytest
+```
+
+If you are manually trying commands against test data, set `LORE_HOME` to a separate directory first.
+
+### Project map
+
+```text
+src/lore/
+├── cli.py                  # CLI entry point and commands
+├── config.py               # Local configuration paths and loading
+├── core/                   # SQLite database, models, exceptions
+├── scanner/                # Git scanning and project inspection
+├── extraction/              # Content atoms and evidence records
+├── intelligence/           # Narrative angles and calendar suggestions
+├── generation/              # Provider router, prompts, humanizer
+├── visual/                  # SVG illustration and diff-card rendering
+├── approval/                # Terminal review and local dashboard
+├── mcp/                    # MCP stdio server
+└── publishing/              # Provider adapters; not exposed as CLI publishing
+```
+
+This repository is a local-first CLI rather than a hosted application. There is no Docker, cloud, or server deployment setup to configure.
 
 ## Feedback
 
-For beta feedback or bug reports, open a [GitHub issue](https://github.com/Sumeet-basfore/lore/issues). Include the Lore version, Python version, command used, and a sanitized error message. Do not attach API keys, private diffs, or customer data.
+Report bugs or beta feedback in [GitHub Issues](https://github.com/Sumeet-basfore/lore/issues). Include the Lore and Python versions, the command you ran, what you expected, and a sanitized error message. Do not attach API keys, private diffs, customer information, or other sensitive repository data.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Lore is released under the MIT License. See [LICENSE](LICENSE).
