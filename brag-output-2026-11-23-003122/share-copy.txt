@@ -1,3 +1,0 @@
-Lore turns recent Git history into an editable engineering draft you can review and export. Built for the moment after you ship and before you write the post.
-
-Music: Sascha Ende, ende.app (CC BY 4.0).
