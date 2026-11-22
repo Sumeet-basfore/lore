@@ -9,6 +9,11 @@ Lore is a local-first CLI for turning recent Git history into engineering conten
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="MIT License"></a>
 </p>
 
+<p align="center">
+  <img src="assets/readme/lore-review-preview.png" alt="Illustrative preview of Lore's local review dashboard with sample draft data" width="100%">
+</p>
+<p align="center"><em>Illustrative dashboard preview. The draft and record values shown are sample data.</em></p>
+
 **Beta:** Install Lore from source; the package is not published to PyPI. See the [beta tester guide](BETA.md) for the workflow and privacy details.
 
 [Quickstart](#quickstart) · [Capabilities](#what-the-current-cli-does) · [Privacy](#privacy-and-data-handling) · [Feedback](#feedback)
