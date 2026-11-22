@@ -100,6 +100,10 @@ When web surfaces adopt these fonts, self-host WOFF2 files sourced through the [
 
 Use a 4px spacing rhythm. Give prose a 64–72 character measure and let evidence rows stay compact. The dashboard remains task-focused, with the draft and evidence ledger adjacent but distinct. A future landing page should lead with a genuine Lore draft and its commit metadata, then show the actual CLI steps. Do not invent paragraph-to-commit connections. At narrow widths, stack the evidence list after the draft.
 
+## Generated illustrations
+
+Draft illustrations use the same cool paper, ink, muted text, and rule colors as the marketing palette. Keep the geometry restrained and subordinate to the draft copy and evidence counts. Lore renders SVG locally from a bounded set of geometric shapes; model output must never be inserted as raw SVG, script, CSS, or external resource markup. Show draft text and evidence counts only from saved draft and atom fields. An invalid scene response may use the deterministic Evidence Strata motif, which must not be presented as tailored to that draft. Treat every generated image as an editable draft for human review, and export PNG when a social platform does not accept SVG.
+
 ## Elevation & Depth
 
 Use surface contrast and thin borders to define regions. Avoid shadows, glows, blurred layers and nested cards.

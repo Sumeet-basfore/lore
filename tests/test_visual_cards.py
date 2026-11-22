@@ -1,13 +1,28 @@
 """Tests for Lore Visual Engine (Diff Truncator, Themes, Layout Engine, Card Generator)."""
 
-import tempfile
 from pathlib import Path
+import struct
+from types import SimpleNamespace
+import sys
+import zlib
 import pytest
 
 from lore.visual.ast_diff_truncator import truncate_diff_for_card
-from lore.visual.card_generator import generate_diff_card
+from lore.visual.card_generator import PNG_SIGNATURE, _is_png_bytes, generate_diff_card
 from lore.visual.layout_engine import CardLayout, render_diff_svg
 from lore.visual.themes import THEMES, get_theme, verify_theme_contrast
+
+def png_chunk(chunk_type: bytes, data: bytes) -> bytes:
+    checksum = zlib.crc32(chunk_type + data) & 0xFFFFFFFF
+    return struct.pack(">I", len(data)) + chunk_type + data + struct.pack(">I", checksum)
+
+
+PNG_HEADER = (
+    PNG_SIGNATURE
+    + png_chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
+    + png_chunk(b"IDAT", zlib.compress(b"\x00\x00\x00\x00"))
+    + png_chunk(b"IEND", b"")
+)
 
 
 SAMPLE_DIFF = """
@@ -87,8 +102,28 @@ def test_layout_engine_aspect_ratio_1_1():
     assert "LOC" in svg
 
 
-def test_card_generator_output(tmp_path):
-    """Verify card generator creates a file on disk."""
+def test_card_generator_svg_output_does_not_require_a_rasterizer(tmp_path):
+    """SVG output remains available without optional raster tools."""
+    out_target = tmp_path / "card.svg"
+    result_path = generate_diff_card(
+        diff_text=SAMPLE_DIFF,
+        output_path=out_target,
+        theme_name="catppuccin_mocha",
+        aspect_ratio="16:9",
+    )
+    assert result_path == out_target
+    assert result_path.read_text(encoding="utf-8").startswith("<svg")
+
+
+def test_card_generator_png_output_is_actually_png(tmp_path, monkeypatch):
+    """Raster output is validated rather than accepted by file existence alone."""
+    monkeypatch.setattr("lore.visual.card_generator.shutil.which", lambda _: None)
+    monkeypatch.setitem(
+        sys.modules,
+        "resvg_py",
+        SimpleNamespace(svg_to_bytes=lambda _: PNG_HEADER),
+    )
+
     out_target = tmp_path / "card.png"
     result_path = generate_diff_card(
         diff_text=SAMPLE_DIFF,
@@ -96,5 +131,36 @@ def test_card_generator_output(tmp_path):
         theme_name="catppuccin_mocha",
         aspect_ratio="16:9",
     )
-    assert result_path.exists()
-    assert result_path.stat().st_size > 0
+
+    assert result_path == out_target
+    assert out_target.read_bytes() == PNG_HEADER
+    assert out_target.with_suffix(".svg").is_file()
+
+
+def test_png_validator_rejects_truncated_and_corrupt_chunks():
+    assert _is_png_bytes(PNG_HEADER)
+    assert not _is_png_bytes(PNG_HEADER[:24])
+
+    corrupt = bytearray(PNG_HEADER)
+    corrupt[-5] ^= 0xFF
+    assert not _is_png_bytes(bytes(corrupt))
+
+
+def test_png_request_explains_missing_rasterizer_and_keeps_svg(tmp_path, monkeypatch):
+    """A missing rasterizer reports an actionable error and never returns an SVG as PNG."""
+    monkeypatch.setattr("lore.visual.card_generator.shutil.which", lambda _: None)
+    monkeypatch.setitem(sys.modules, "resvg_py", None)
+    monkeypatch.setitem(sys.modules, "cairosvg", None)
+
+    out_target = tmp_path / "card.png"
+    with pytest.raises(RuntimeError, match="Could not render PNG") as error:
+        generate_diff_card(
+            diff_text=SAMPLE_DIFF,
+            output_path=out_target,
+            theme_name="catppuccin_mocha",
+            aspect_ratio="16:9",
+        )
+
+    assert "card.svg" in str(error.value)
+    assert out_target.with_suffix(".svg").is_file()
+    assert not out_target.exists()

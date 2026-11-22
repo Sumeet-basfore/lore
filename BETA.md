@@ -45,6 +45,8 @@ lore generate --platform linkedin
 lore review
 ```
 
+To generate an editable illustration for a saved draft, run `lore image generate <draft-id>`. Lore writes an SVG into the project’s `lore-media/` directory and links it to the draft so the local web dashboard can preview it. Use `lore image generate <draft-id> --format png` for a PNG plus its editable SVG source; PNG output requires an optional local rasterizer. Use `--force` to replace existing files. Lore does not publish the image or post.
+
 For the first interactive run in a repository, Lore asks before registering it. For automation, register explicitly from the repository root with `lore project add . --name my-project`. Pass `--project` to target another registered repository.
 
 The review screen lets you inspect drafts and approve, reject, or edit them. You can also inspect a specific draft with `lore draft show <draft-id>`, edit it with `lore draft edit <draft-id>`, and approve it with `lore draft approve <draft-id>`. Export approved drafts with:
@@ -61,6 +63,7 @@ Other supported generation formats are `twitter`, `thread`, `blog`, and `changel
 - `lore scan` reads Git commit metadata, including author details, commit subjects, timestamps, changed paths, and insertion/deletion counts. It does not read patch contents for the scan-to-draft workflow. Some known secret-like filenames are excluded by pattern, but that does not detect all secrets.
 - The standalone DLP scanner in the source tree is not called by the current CLI workflow. Do not treat it as protection for your scan or generated prompts.
 - Generation prompts can include the project name, commit subjects, evidence SHAs, file paths, counts, dates, technology stack, and generated style guidance. Changelog prompts include a few commit subjects. Lore does not send the full voice sample text, but stores those samples locally.
+- Image prompts include the project name, platform, draft title and a short draft excerpt, linked atom title/summary, and evidence counts. They do not include source files or patch contents. If you selected a remote provider, that image prompt is sent to it. SVG shape markup is rendered locally from a restricted geometric schema.
 - The default Ollama URL is local. If you configure another Ollama URL or choose a cloud provider, prompt data goes to that endpoint and is subject to its policies.
 - Lore stores project paths, atoms, drafts, voice samples, and configuration in local files under `~/.lore/` or `LORE_HOME`. These files are not encrypted by Lore.
 
@@ -70,7 +73,7 @@ Use a local Ollama endpoint if you do not want Lore to send prompts to a remote 
 
 Evidence records connect a draft to Git commit SHAs, subjects, paths, and change counts. They do not verify every sentence. Lore does not know whether a change improved performance, passed tests, or had a particular user impact unless that information is present in the commit metadata and checked by you. Generated content can still be inaccurate or include unsupported details.
 
-With normal settings, if the selected model is unavailable, Lore stops with an error instead of saving a fallback draft. `LORE_MOCK_LLM=1` is an explicit test mode that returns canned example text; do not use that output as project content. Check the commit, metric, and file claims yourself before approving or sharing an export.
+With normal settings, if the selected model is unavailable, Lore stops with an error instead of saving a fallback draft. An invalid image-scene response uses Lore’s built-in geometric evidence motif, which is not tailored to the draft. `LORE_MOCK_LLM=1` is an explicit test mode that returns canned example text; do not use that output as project content. Check the commit, metric, and file claims yourself, and review the image, before approving or sharing an export.
 
 ## Report feedback
 

@@ -76,9 +76,12 @@ On first use in an unregistered Git repository, Lore asks before adding it. For 
 lore generate --platform linkedin
 # Replace <draft-id> with the ID printed by `lore generate`.
 lore draft show <draft-id>
+lore image generate <draft-id>
 lore draft edit <draft-id>
 lore draft approve <draft-id>
 ```
+
+Image generation saves an editable SVG under `lore-media/` in the project and attaches it to the draft for preview in `lore review --web`. Add `--format png` when you need a raster image for a social platform; PNG conversion uses an optional local renderer and keeps the SVG source alongside it. Use `--force` to replace an existing image.
 
 You can also list drafts with `lore drafts`, review pending drafts in the terminal with `lore review`, or open the local dashboard with `lore review --web`. The dashboard binds to loopback on `127.0.0.1`. With no subcommand, `lore` shows the current repository and suggested next commands.
 
@@ -101,6 +104,8 @@ lore export --status approved --format markdown --output-dir ./exports
 - Reads Git commit metadata for the selected time range: commit subjects, dates, changed file paths, and insertion/deletion counts.
 - Groups related commits into content atoms and records commit SHAs, file paths, and change counts as evidence.
 - Generates drafts for Twitter/X, X threads, LinkedIn, blogs, and changelogs using the configured model.
+- Creates an editable, geometric SVG illustration from a saved draft and its linked evidence summary; optionally exports a PNG for platforms that require raster images.
+- Renders Git diff cards as SVG by default with `lore card`; an explicit `.png` output requires a local rasterizer.
 - Saves projects, atoms, drafts, and voice samples in a local SQLite database under `~/.lore/` (or `LORE_HOME`).
 - Lets you edit, approve, reject, and export drafts. Review each factual claim before using it.
 
@@ -110,6 +115,7 @@ The CLI scan-to-draft workflow does not read source files or patch contents. A s
 
 - Scanning runs Git locally. It reads commit metadata, including author information, but the generated atoms use commit subjects, file paths, counts, dates, and SHAs.
 - Generation sends a prompt containing the project name, selected atom and commit summaries, evidence fields, technology stack, and generated style guidance. Changelog prompts also include commit subjects. Voice sample text stays in the local database; Lore derives brief style guidance from it for the prompt.
+- Image generation sends the project name, platform, draft title and a short excerpt, linked atom title/summary, and evidence counts to the configured model. It does not send source files or patch contents. A remote provider receives this prompt when selected. The SVG markup is rendered locally from a restricted set of geometric shapes.
 - With the default Ollama URL, Lore sends the prompt to the local Ollama endpoint. If you configure a remote Ollama endpoint or select OpenAI, Anthropic, OpenRouter, or Gemini, prompt data is sent to that service under its terms.
 - Lore stores project paths, atoms, drafts, voice samples, and configuration locally. The SQLite database is `~/.lore/lore.db`; configuration is `~/.lore/config.yml`. A key saved in config is stored there without encryption. Prefer provider environment variables for API keys and protect your local account and files.
 - Lore does not currently publish drafts from the CLI. The beta workflow ends with review and local export.
@@ -118,7 +124,7 @@ Do not use Lore with a repository if its commit metadata, file names, project na
 
 ## Limits to keep in mind
 
-Generated text can still contain unsupported claims or inaccurate interpretations. Evidence links drafts to Git records and counts; it does not prove every sentence. Inspect each draft against the repository before approving or sharing it.
+Generated text and illustrations can still be misleading or inaccurate. Evidence links drafts to Git records and counts; it does not prove every sentence or that an illustration represents the change correctly. Inspect each draft and image before approving or sharing them.
 
 The CLI reads commit metadata rather than source diffs. It can miss the reason behind a change when commit messages are vague, and its change counts do not establish impact or performance. Lore does not verify metrics, infer test outcomes, or guarantee that a draft sounds human.
 

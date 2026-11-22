@@ -89,7 +89,8 @@ def test_mcp_tool_call_list_atoms(test_db):
     assert data[0]["id"] == "atom_mcp_1"
 
 
-def test_mcp_tool_call_render_card(test_db):
+def test_mcp_tool_call_render_card(test_db, tmp_path, monkeypatch):
+    monkeypatch.setenv("LORE_HOME", str(tmp_path / "lore-home"))
     server = LoreMCPServer(db=test_db)
     sample_diff = "@@ -1,1 +1,2 @@\n-old\n+new"
     req = {
@@ -100,7 +101,9 @@ def test_mcp_tool_call_render_card(test_db):
     }
     resp = server.handle_request(req)
     assert resp["result"]["isError"] is False
-    assert "Rendered diff card saved to" in resp["result"]["content"][0]["text"]
+    text = resp["result"]["content"][0]["text"]
+    assert "Rendered diff card saved to" in text
+    assert text.endswith(".svg")
 
 
 def test_mcp_tool_call_approve(test_db):
