@@ -1,0 +1,40 @@
+name: factory
+
+# The gate. It runs on GitHub, where a change to this repository cannot edit it.
+# The check is named `factory`, and branch protection requires that name.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  factory:
+    name: factory
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          repository: Sumeet-basfore/prosci
+          path: factory
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false
+      - name: Run the contract
+        run: node factory/bin/verify . --state-dir .factory --json
+      - name: Keep the receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-receipt
+          path: .factory/verify.jsonl
+          if-no-files-found: warn
