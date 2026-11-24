@@ -172,3 +172,12 @@ When generating or editing prompt templates and humanizer functions:
    Run `git add -A && git commit -m "feat(<module>): description"` inside `projects/lore/`.
 3. **Run tests before moving on:**
    Ensure all pytest tests pass cleanly before completing.
+
+## Factory
+
+Commands this repo verifies with. Written down once so the local gate, Forge Mate, and GitHub
+run the same ones. The environment bootstraps itself, because a fresh clone has no `.venv`.
+
+```factory
+test: uv run --extra dev python -m pytest -q
+```
